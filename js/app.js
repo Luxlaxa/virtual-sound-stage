@@ -781,6 +781,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         var secPOV = createSection(camBody, 'POV Adjust', false);
         var secLighting = createSection(camBody, 'Lighting', false);
         var secVariants = createSection(camBody, 'World Variants', false);
+        var secShotList = createSection(camBody, 'Shot List', false);
         var secReset = createSection(camBody, 'Reset', false);
 
         // ── Camera Preset Selector ──
@@ -1225,6 +1226,139 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         });
         resetRow.appendChild(resetBtn);
         secReset.appendChild(resetRow);
+
+        // ── Shot List Panel ──
+
+        // Shot type dropdown for active camera
+        var stLabel = document.createElement('div');
+        stLabel.className = 'section-label';
+        stLabel.textContent = 'current shot';
+        secShotList.appendChild(stLabel);
+
+        var shotTypes = ['wide', 'medium', 'close-up', 'extreme-close-up', 'insert', 'pov', 'ots', 'establishing', 'two-shot'];
+        var stRow = document.createElement('div');
+        stRow.className = 'select-row';
+        var stSelect = document.createElement('select');
+        shotTypes.forEach(function(t) {
+            var opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t.replace(/-/g, ' ').toUpperCase();
+            stSelect.appendChild(opt);
+        });
+        stRow.appendChild(stSelect);
+        secShotList.appendChild(stRow);
+
+        // Shot description input
+        var sdInput = document.createElement('input');
+        sdInput.type = 'text';
+        sdInput.placeholder = 'shot description...';
+        sdInput.style.cssText = 'width:100%;padding:4px 6px;background:#1a1a22;border:1px solid #333;border-radius:3px;color:#aaa;font-family:inherit;font-size:9px;margin:4px 0;outline:none;box-sizing:border-box;';
+        sdInput.addEventListener('keydown', function(e) { e.stopPropagation(); });
+        secShotList.appendChild(sdInput);
+
+        // Shot notes input
+        var snInput = document.createElement('input');
+        snInput.type = 'text';
+        snInput.placeholder = 'notes...';
+        snInput.style.cssText = 'width:100%;padding:4px 6px;background:#1a1a22;border:1px solid #333;border-radius:3px;color:#aaa;font-family:inherit;font-size:9px;margin:4px 0;outline:none;box-sizing:border-box;';
+        snInput.addEventListener('keydown', function(e) { e.stopPropagation(); });
+        secShotList.appendChild(snInput);
+
+        // Save shot info when changed
+        function saveShotInfo() {
+            var cam = cameras.find(function(c) { return c.id === activeCamId; });
+            if (cam) {
+                cam.shotType = stSelect.value;
+                cam.shotDescription = sdInput.value;
+                cam.shotNotes = snInput.value;
+                saveCameraState();
+                renderShotList();
+            }
+        }
+        stSelect.addEventListener('change', saveShotInfo);
+        sdInput.addEventListener('change', saveShotInfo);
+        snInput.addEventListener('change', saveShotInfo);
+
+        // Load shot info when camera switches
+        function loadShotInfo() {
+            var cam = cameras.find(function(c) { return c.id === activeCamId; });
+            if (cam) {
+                stSelect.value = cam.shotType || 'medium';
+                sdInput.value = cam.shotDescription || '';
+                snInput.value = cam.shotNotes || '';
+            }
+        }
+
+        // ── Shot List Display ──
+
+        var slLabel = document.createElement('div');
+        slLabel.className = 'section-label';
+        slLabel.textContent = 'all shots';
+        secShotList.appendChild(slLabel);
+
+        var slListEl = document.createElement('div');
+        slListEl.style.cssText = 'margin:4px 0;max-height:200px;overflow-y:auto;';
+        secShotList.appendChild(slListEl);
+
+        function renderShotList() {
+            slListEl.innerHTML = '';
+            cameras.forEach(function(cam, i) {
+                var row = document.createElement('div');
+                row.style.cssText = 'display:flex;gap:4px;align-items:center;padding:3px 0;font-size:9px;color:' + (cam.id === activeCamId ? '#e87400' : '#666') + ';cursor:pointer;border-bottom:1px solid #1a1a1a;';
+
+                var num = document.createElement('span');
+                num.style.cssText = 'width:16px;flex-shrink:0;color:#444;';
+                num.textContent = (i + 1) + '.';
+
+                var info = document.createElement('span');
+                info.style.flex = '1';
+                var typeTag = (cam.shotType || 'medium').toUpperCase().substring(0, 4);
+                info.textContent = cam.name + ' [' + typeTag + ']' + (cam.shotDescription ? ' \u2014 ' + cam.shotDescription : '');
+
+                row.appendChild(num);
+                row.appendChild(info);
+
+                row.addEventListener('click', function() { switchCamera(cam.id); });
+                slListEl.appendChild(row);
+            });
+        }
+
+        // ── Export Shot List ──
+
+        var exportBtn = document.createElement('button');
+        exportBtn.className = 'copy-btn';
+        exportBtn.textContent = 'export shot list';
+        exportBtn.addEventListener('click', function() {
+            var shotList = {
+                project: 'Virtual Sound Stage \u2014 still-220723',
+                exportDate: new Date().toISOString(),
+                scene: 'Golden Gate Waterfront',
+                shots: cameras.map(function(cam, i) {
+                    var body = getBody(cam.bodyId);
+                    var lens = getLens(cam.lensId);
+                    return {
+                        number: i + 1,
+                        name: cam.name,
+                        shotType: cam.shotType || 'medium',
+                        description: cam.shotDescription || '',
+                        notes: cam.shotNotes || '',
+                        camera: {
+                            body: body.manufacturer + ' ' + body.name,
+                            lens: lens.manufacturer + ' ' + lens.name,
+                            focalLength: cam.focalLength,
+                            aperture: cam.aperture
+                        },
+                        position: { x: cam.position.x, y: cam.position.y, z: cam.position.z },
+                        rotation: { x: cam.rotation.x, y: cam.rotation.y, z: cam.rotation.z }
+                    };
+                })
+            };
+
+            var blob = new Blob([JSON.stringify(shotList, null, 2)], { type: 'application/json' });
+            downloadBlob(blob, 'shot-list-' + new Date().toISOString().split('T')[0] + '.json');
+            flashBadge('shot list exported');
+        });
+        secShotList.appendChild(exportBtn);
 
         // DOF toggle
         var dofRow = document.createElement('div');
@@ -2541,7 +2675,10 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                 aperture: opts.aperture || aperture,
                 position: opts.position || camera.getPosition().clone(),
                 rotation: opts.rotation || camera.getEulerAngles().clone(),
-                thumbnail: null
+                thumbnail: null,
+                shotType: opts.shotType || 'medium',
+                shotDescription: opts.shotDescription || '',
+                shotNotes: opts.shotNotes || ''
             };
         }
 
@@ -2619,6 +2756,9 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                 smooth.ty = target.position.y - 0.5;
                 smooth.tz = target.position.z - 2;
             }
+
+            // Update shot info panel if it exists
+            if (typeof loadShotInfo === 'function') loadShotInfo();
         }
 
         function removeCamera(id) {
@@ -2641,7 +2781,10 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                 focalLength: src.focalLength,
                 aperture: src.aperture,
                 position: src.position.clone ? src.position.clone() : new pc.Vec3(src.position.x, src.position.y, src.position.z),
-                rotation: src.rotation.clone ? src.rotation.clone() : new pc.Vec3(src.rotation.x, src.rotation.y, src.rotation.z)
+                rotation: src.rotation.clone ? src.rotation.clone() : new pc.Vec3(src.rotation.x, src.rotation.y, src.rotation.z),
+                shotType: src.shotType,
+                shotDescription: src.shotDescription,
+                shotNotes: src.shotNotes
             });
         }
 
@@ -2708,6 +2851,9 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             captAllBtn.style.color = '#c33';
             captAllBtn.addEventListener('click', function() { captureAllCameras(); });
             strip.appendChild(captAllBtn);
+
+            // Sync shot list display
+            if (typeof renderShotList === 'function') renderShotList();
         }
 
         // ── Camera State Persistence (localStorage) ──
@@ -2729,7 +2875,10 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                     focalLength: c.focalLength,
                     aperture: c.aperture,
                     position: { x: c.position.x, y: c.position.y, z: c.position.z },
-                    rotation: { x: c.rotation.x, y: c.rotation.y, z: c.rotation.z }
+                    rotation: { x: c.rotation.x, y: c.rotation.y, z: c.rotation.z },
+                    shotType: c.shotType || 'medium',
+                    shotDescription: c.shotDescription || '',
+                    shotNotes: c.shotNotes || ''
                 };
             });
             localStorage.setItem('ib-cameras', JSON.stringify({ cameras: data, activeId: activeCamId, seqId: camSeqId }));
@@ -2751,7 +2900,10 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                             aperture: c.aperture,
                             position: new pc.Vec3(c.position.x, c.position.y, c.position.z),
                             rotation: new pc.Vec3(c.rotation.x, c.rotation.y, c.rotation.z),
-                            thumbnail: null
+                            thumbnail: null,
+                            shotType: c.shotType || 'medium',
+                            shotDescription: c.shotDescription || '',
+                            shotNotes: c.shotNotes || ''
                         });
                     });
                     activeCamId = data.activeId;
