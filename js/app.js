@@ -332,6 +332,47 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             app.root.addChild(davinci);
         }
 
+        // ── Fix PBR rendering: environment map + material boost ──
+        // PBR materials need ambient/environment lighting to show textures properly.
+        // Without this, they look flat/clay regardless of texture quality.
+        function boostCharacterMaterials(entity) {
+            if (!entity) return;
+            var renders = entity.findComponents('render');
+            renders.forEach(function(renderComp) {
+                if (!renderComp.meshInstances) return;
+                renderComp.meshInstances.forEach(function(mi) {
+                    var mat = mi.material;
+                    if (!mat) return;
+                    // Boost ambient response so directional lights show the textures
+                    mat.ambient = new pc.Color(1, 1, 1);
+                    mat.ambientTint = true;
+                    // Reduce metalness — most character materials are non-metallic (skin, fabric)
+                    if (mat.metalness > 0.3) mat.metalness = 0.1;
+                    // Ensure diffuse map shows through
+                    if (mat.diffuse) {
+                        mat.diffuse = new pc.Color(1, 1, 1);
+                    }
+                    // Boost the overall brightness
+                    mat.emissiveIntensity = 0.15;
+                    mat.update();
+                });
+            });
+        }
+        boostCharacterMaterials(phop);
+        boostCharacterMaterials(davinci);
+
+        // Increase ambient light for character visibility
+        app.scene.ambientLight = new pc.Color(0.5, 0.5, 0.55);
+
+        // Add a hemisphere-style fill: second softer directional from below
+        var rimLight = new pc.Entity('Rim');
+        rimLight.addComponent('light', {
+            type: 'directional', color: new pc.Color(0.6, 0.65, 0.8),
+            intensity: 0.6, castShadows: false
+        });
+        rimLight.setEulerAngles(-30, 0, 0); // from below/front
+        app.root.addChild(rimLight);
+
         // Lights
         var sun = new pc.Entity('Sun');
         sun.addComponent('light', {
