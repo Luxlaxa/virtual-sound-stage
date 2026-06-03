@@ -398,7 +398,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         // ───────────────────────────────────────────────────────────
 
         canvas.addEventListener('mousedown', function (e) {
-            if (cameraLocked) return;
+            if (cameraLocked || cameraMode === 'path') return;
             if (cameraMode === 'orbit') {
                 if (e.shiftKey) orbit.panning = true;
                 else if (e.button === 0) orbit.dragging = true;
@@ -417,7 +417,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
         canvas.addEventListener('mousemove', function (e) {
-            if (cameraLocked) return;
+            if (cameraLocked || cameraMode === 'path') return;
             var dx = e.clientX - orbit.lastX;
             var dy = e.clientY - orbit.lastY;
             orbit.lastX = e.clientX;
@@ -444,7 +444,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         });
 
         canvas.addEventListener('wheel', function (e) {
-            if (cameraLocked) return;
+            if (cameraLocked || cameraMode === 'path') return;
             if (cameraMode === 'orbit') {
                 smooth.d = Math.max(0.3, Math.min(30, smooth.d * (1 + e.deltaY * 0.001)));
             } else if (cameraMode === 'fly') {
@@ -562,12 +562,139 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         });
 
         // ───────────────────────────────────────────────────────────
+        // CAMERA PATH ANIMATION
+        // ───────────────────────────────────────────────────────────
+
+        var cameraPath = {
+            keyframes: [],
+            duration: 5,
+            playing: false,
+            playTime: 0,
+            loop: false
+        };
+
+        function addKeyframe() {
+            var pos = camera.getPosition().clone();
+            var rot = camera.getEulerAngles().clone();
+
+            cameraPath.keyframes.push({
+                time: 0,
+                position: pos,
+                rotation: rot,
+                fov: camera.camera.fov
+            });
+
+            redistributeKeyframeTimes();
+            renderKeyframeList();
+            flashBadge('keyframe ' + cameraPath.keyframes.length + ' added');
+        }
+
+        function redistributeKeyframeTimes() {
+            var n = cameraPath.keyframes.length;
+            for (var i = 0; i < n; i++) {
+                cameraPath.keyframes[i].time = n === 1 ? 0 : i / (n - 1);
+            }
+        }
+
+        function removeKeyframe(index) {
+            cameraPath.keyframes.splice(index, 1);
+            redistributeKeyframeTimes();
+            renderKeyframeList();
+        }
+
+        function goToKeyframe(index) {
+            var kf = cameraPath.keyframes[index];
+            camera.setPosition(kf.position);
+            camera.setEulerAngles(kf.rotation.x, kf.rotation.y, kf.rotation.z);
+            camera.camera.fov = kf.fov;
+            flyYaw = kf.rotation.y;
+            flyPitch = kf.rotation.x;
+        }
+
+        function interpolateKeyframes(keyframes, t) {
+            var n = keyframes.length;
+            if (t <= 0) return keyframes[0];
+            if (t >= 1) return keyframes[n - 1];
+
+            var i = 0;
+            for (var k = 0; k < n - 1; k++) {
+                if (t >= keyframes[k].time && t <= keyframes[k + 1].time) {
+                    i = k;
+                    break;
+                }
+            }
+
+            var segStart = keyframes[i].time;
+            var segEnd = keyframes[i + 1].time;
+            var lt = (segEnd - segStart) > 0 ? (t - segStart) / (segEnd - segStart) : 0;
+
+            // Smoothstep easing
+            lt = lt * lt * (3 - 2 * lt);
+
+            var pos = new pc.Vec3();
+            pos.lerp(keyframes[i].position, keyframes[i + 1].position, lt);
+
+            var rot = new pc.Vec3();
+            rot.lerp(keyframes[i].rotation, keyframes[i + 1].rotation, lt);
+
+            var fov = keyframes[i].fov + (keyframes[i + 1].fov - keyframes[i].fov) * lt;
+
+            return { position: pos, rotation: rot, fov: fov };
+        }
+
+        function playPath() {
+            if (cameraPath.keyframes.length < 2) {
+                flashBadge('need at least 2 keyframes');
+                return;
+            }
+            cameraPath.playing = true;
+            cameraPath.playTime = 0;
+            cameraMode = 'path';
+            updateModeUI();
+        }
+
+        function stopPath() {
+            cameraPath.playing = false;
+            cameraMode = 'fly';
+            var euler = camera.getEulerAngles();
+            flyYaw = euler.y;
+            flyPitch = euler.x;
+            updateModeUI();
+            if (typeof animPlayBtn !== 'undefined') {
+                animPlayBtn.textContent = '\u25B6 play';
+                animPlayBtn.classList.remove('active');
+            }
+        }
+
+        // ───────────────────────────────────────────────────────────
         // UPDATE LOOP
         // ───────────────────────────────────────────────────────────
 
         var DEG2RAD = Math.PI / 180;
 
         app.on('update', function (dt) {
+            // Camera path playback
+            if (cameraPath.playing && cameraPath.keyframes.length >= 2) {
+                cameraPath.playTime += dt / cameraPath.duration;
+
+                if (cameraPath.playTime >= 1) {
+                    if (cameraPath.loop) {
+                        cameraPath.playTime = 0;
+                    } else {
+                        cameraPath.playTime = 1;
+                        stopPath();
+                    }
+                }
+
+                if (cameraPath.playing) {
+                    var pathT = cameraPath.playTime;
+                    var result = interpolateKeyframes(cameraPath.keyframes, pathT);
+                    camera.setPosition(result.position);
+                    camera.setEulerAngles(result.rotation.x, result.rotation.y, result.rotation.z);
+                    camera.camera.fov = result.fov;
+                }
+            }
+
             // Fly mode movement (WASD / arrows)
             if (cameraMode === 'fly' && !cameraLocked) {
                 var speed = 2 * dt;
@@ -648,6 +775,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         // ── Create accordion sections ──
         var secCamera = createSection(camBody, 'Camera', true);
         var secControls = createSection(camBody, 'Controls', true);
+        var secAnimation = createSection(camBody, 'Animation', false);
         var secViewfinder = createSection(camBody, 'Viewfinder', false);
         var secDOF = createSection(camBody, 'DOF', false);
         var secPOV = createSection(camBody, 'POV Adjust', false);
@@ -900,6 +1028,8 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             btn.className = 'cam-mode-btn' + (m === cameraMode ? ' active' : '');
             btn.textContent = m;
             btn.addEventListener('click', function () {
+                // Stop path playback if switching modes manually
+                if (cameraPath.playing) stopPath();
                 if (m === 'fly') {
                     cameraMode = 'fly';
                     var euler = camera.getEulerAngles();
@@ -958,6 +1088,109 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         });
         lockRow.appendChild(lockDavBtn);
         secControls.appendChild(lockRow);
+
+        // ── ANIMATION SECTION UI ──
+
+        // Add keyframe button
+        var addKfBtn = document.createElement('button');
+        addKfBtn.className = 'lock-btn';
+        addKfBtn.style.width = '100%';
+        addKfBtn.textContent = 'add keyframe at current position';
+        addKfBtn.addEventListener('click', addKeyframe);
+        secAnimation.appendChild(addKfBtn);
+
+        // Keyframe list container
+        var kfListEl = document.createElement('div');
+        kfListEl.style.cssText = 'margin:6px 0;';
+        secAnimation.appendChild(kfListEl);
+
+        // Duration slider
+        var durLabel = document.createElement('div');
+        durLabel.className = 'section-label';
+        durLabel.textContent = 'duration';
+        secAnimation.appendChild(durLabel);
+        var durSlider = makeSlider(secAnimation, 'sec', cameraPath.duration, 1, 30, 0.5, function(v) {
+            cameraPath.duration = v;
+        });
+
+        // Play/Stop + Loop + Clear buttons
+        var animPlayRow = document.createElement('div');
+        animPlayRow.className = 'lock-row';
+
+        var animPlayBtn = document.createElement('button');
+        animPlayBtn.className = 'lock-btn';
+        animPlayBtn.textContent = '\u25B6 play';
+        animPlayBtn.addEventListener('click', function() {
+            if (cameraPath.playing) {
+                stopPath();
+                animPlayBtn.textContent = '\u25B6 play';
+                animPlayBtn.classList.remove('active');
+            } else {
+                playPath();
+                if (cameraPath.playing) {
+                    animPlayBtn.textContent = '\u25A0 stop';
+                    animPlayBtn.classList.add('active');
+                }
+            }
+        });
+        animPlayRow.appendChild(animPlayBtn);
+
+        var loopBtn = document.createElement('button');
+        loopBtn.className = 'lock-btn';
+        loopBtn.textContent = 'loop off';
+        loopBtn.addEventListener('click', function() {
+            cameraPath.loop = !cameraPath.loop;
+            loopBtn.textContent = cameraPath.loop ? 'loop on' : 'loop off';
+            loopBtn.classList.toggle('active');
+        });
+        animPlayRow.appendChild(loopBtn);
+
+        var clearKfBtn = document.createElement('button');
+        clearKfBtn.className = 'lock-btn';
+        clearKfBtn.textContent = 'clear';
+        clearKfBtn.addEventListener('click', function() {
+            cameraPath.keyframes = [];
+            renderKeyframeList();
+            if (cameraPath.playing) stopPath();
+            animPlayBtn.textContent = '\u25B6 play';
+            animPlayBtn.classList.remove('active');
+        });
+        animPlayRow.appendChild(clearKfBtn);
+
+        secAnimation.appendChild(animPlayRow);
+
+        function renderKeyframeList() {
+            kfListEl.innerHTML = '';
+            cameraPath.keyframes.forEach(function(kf, i) {
+                var row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:9px;color:#666;';
+
+                var label = document.createElement('span');
+                label.style.flex = '1';
+                label.textContent = 'KF' + (i+1) + ' (' + (kf.time * 100).toFixed(0) + '%)';
+
+                var goBtn = document.createElement('button');
+                goBtn.className = 'lock-btn';
+                goBtn.style.cssText = 'padding:2px 6px;font-size:8px;flex:none;';
+                goBtn.textContent = 'go';
+                (function(idx) {
+                    goBtn.addEventListener('click', function() { goToKeyframe(idx); });
+                })(i);
+
+                var delBtn = document.createElement('button');
+                delBtn.className = 'lock-btn';
+                delBtn.style.cssText = 'padding:2px 6px;font-size:8px;flex:none;color:#c33;';
+                delBtn.textContent = '\u00D7';
+                (function(idx) {
+                    delBtn.addEventListener('click', function() { removeKeyframe(idx); });
+                })(i);
+
+                row.appendChild(label);
+                row.appendChild(goBtn);
+                row.appendChild(delBtn);
+                kfListEl.appendChild(row);
+            });
+        }
 
         // Viewfinder toggle button
         var vfRow = document.createElement('div');
@@ -1453,8 +1686,9 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             lockCamBtn.className = 'lock-btn' + (cameraLocked ? ' active' : '');
             lockPhopBtn.className = 'lock-btn' + (trackTarget === 'Phop' ? ' active' : '');
             lockDavBtn.className = 'lock-btn' + (trackTarget === 'Davinci' ? ' active' : '');
-            document.getElementById('hud-mode').textContent = cameraMode + (cameraLocked ? ' [locked]' : '');
-            document.getElementById('hud-extra').textContent = trackTarget ? 'tracking: ' + trackTarget : '';
+            var modeText = cameraMode === 'path' ? 'path \u25B6' : cameraMode;
+            document.getElementById('hud-mode').textContent = modeText + (cameraLocked ? ' [locked]' : '');
+            document.getElementById('hud-extra').textContent = trackTarget ? 'tracking: ' + trackTarget : (cameraPath.playing ? 'playing path...' : '');
         }
 
         // ───────────────────────────────────────────────────────────
