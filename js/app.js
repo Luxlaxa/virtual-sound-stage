@@ -337,19 +337,24 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         var charSplatAssets = { phop: null, davinci: null };
         var charMode = { phop: 'mesh', davinci: 'mesh' }; // 'mesh' or 'splat'
 
+        // Splat positioning — SAM 3D generates in its own coordinate space.
+        // These defaults place the splat near the mesh. User can adjust via sliders.
+        var charSplatTransforms = {
+            phop:    { pos: [-0.64, 0.5, 0.0], rot: [0, 0, 0], scale: 1.0 },
+            davinci: { pos: [0.11, 0.5, -0.01], rot: [0, 0, 0], scale: 1.0 }
+        };
+
         function loadCharacterSplat(name, filename, callback) {
             var splatAsset = new pc.Asset(name + '-splat', 'gsplat', { url: filename });
             splatAsset.on('load', function () {
                 var splatEntity = new pc.Entity(name + '-Splat');
                 splatEntity.addComponent('gsplat', { asset: splatAsset });
 
-                // Position the splat at the same location as the mesh
-                var meshEntity = name === 'phop' ? phop : davinci;
-                if (meshEntity) {
-                    splatEntity.setLocalPosition(meshEntity.getLocalPosition());
-                    splatEntity.setLocalEulerAngles(meshEntity.getLocalEulerAngles());
-                    splatEntity.setLocalScale(meshEntity.getLocalScale());
-                }
+                // Use splat-specific transform (NOT the mesh rotation which is Z-up correction)
+                var t = charSplatTransforms[name];
+                splatEntity.setLocalPosition(t.pos[0], t.pos[1], t.pos[2]);
+                splatEntity.setLocalEulerAngles(t.rot[0], t.rot[1], t.rot[2]);
+                splatEntity.setLocalScale(t.scale, t.scale, t.scale);
 
                 splatEntity.enabled = false; // start hidden
                 app.root.addChild(splatEntity);
@@ -359,6 +364,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             });
             splatAsset.on('error', function (err) {
                 console.warn('splat not available for ' + name + ':', err);
+                flashBadge('splat not found: ' + filename);
             });
             app.assets.add(splatAsset);
             app.assets.load(splatAsset);
@@ -1555,12 +1561,98 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
 
         secCharacters.appendChild(charRow);
 
-        // Generate splat buttons
-        var genSplatInfo = document.createElement('div');
-        genSplatInfo.className = 'lens-info';
-        genSplatInfo.style.marginTop = '6px';
-        genSplatInfo.textContent = 'splat files: davinci-splat.ply, phop-splat.ply';
-        secCharacters.appendChild(genSplatInfo);
+        // Splat adjustment sliders — visible when a character is in splat mode
+        var splatAdjustLabel = document.createElement('div');
+        splatAdjustLabel.className = 'section-label';
+        splatAdjustLabel.textContent = 'splat adjust (active character)';
+        secCharacters.appendChild(splatAdjustLabel);
+
+        var activeSplatName = 'davinci'; // which character's splat to adjust
+        var splatCharSelect = document.createElement('div');
+        splatCharSelect.className = 'lock-row';
+        var splatSelPhop = document.createElement('button');
+        splatSelPhop.className = 'lock-btn';
+        splatSelPhop.textContent = 'phop';
+        splatSelPhop.addEventListener('click', function () {
+            activeSplatName = 'phop';
+            splatSelPhop.classList.add('active');
+            splatSelDav.classList.remove('active');
+            syncSplatSliders();
+        });
+        var splatSelDav = document.createElement('button');
+        splatSelDav.className = 'lock-btn active';
+        splatSelDav.textContent = 'davinci';
+        splatSelDav.addEventListener('click', function () {
+            activeSplatName = 'davinci';
+            splatSelDav.classList.add('active');
+            splatSelPhop.classList.remove('active');
+            syncSplatSliders();
+        });
+        splatCharSelect.appendChild(splatSelPhop);
+        splatCharSelect.appendChild(splatSelDav);
+        secCharacters.appendChild(splatCharSelect);
+
+        var spPosX = makeSlider(secCharacters, 'X', 0, -3, 3, 0.01, function (v) { updateSplatTransform('pos', 0, v); });
+        var spPosY = makeSlider(secCharacters, 'Y', 0, -3, 3, 0.01, function (v) { updateSplatTransform('pos', 1, v); });
+        var spPosZ = makeSlider(secCharacters, 'Z', 0, -3, 3, 0.01, function (v) { updateSplatTransform('pos', 2, v); });
+
+        var spRotLabel = document.createElement('div');
+        spRotLabel.className = 'section-label';
+        spRotLabel.textContent = 'rotation';
+        secCharacters.appendChild(spRotLabel);
+
+        var spRotX = makeSlider(secCharacters, 'X', 0, -180, 180, 1, function (v) { updateSplatTransform('rot', 0, v); });
+        var spRotY = makeSlider(secCharacters, 'Y', 0, -180, 180, 1, function (v) { updateSplatTransform('rot', 1, v); });
+        var spRotZ = makeSlider(secCharacters, 'Z', 0, -180, 180, 1, function (v) { updateSplatTransform('rot', 2, v); });
+
+        var spScaleLabel = document.createElement('div');
+        spScaleLabel.className = 'section-label';
+        spScaleLabel.textContent = 'scale';
+        secCharacters.appendChild(spScaleLabel);
+
+        var spScale = makeSlider(secCharacters, 'S', 1, 0.01, 5, 0.01, function (v) { updateSplatTransform('scale', 0, v); });
+
+        function updateSplatTransform(prop, idx, val) {
+            var t = charSplatTransforms[activeSplatName];
+            if (prop === 'pos') t.pos[idx] = val;
+            else if (prop === 'rot') t.rot[idx] = val;
+            else if (prop === 'scale') t.scale = val;
+
+            var ent = charSplatEntities[activeSplatName];
+            if (ent) {
+                ent.setLocalPosition(t.pos[0], t.pos[1], t.pos[2]);
+                ent.setLocalEulerAngles(t.rot[0], t.rot[1], t.rot[2]);
+                ent.setLocalScale(t.scale, t.scale, t.scale);
+            }
+        }
+
+        function syncSplatSliders() {
+            var t = charSplatTransforms[activeSplatName];
+            spPosX.input.value = t.pos[0]; spPosX.valEl.textContent = formatVal(t.pos[0], 0.01);
+            spPosY.input.value = t.pos[1]; spPosY.valEl.textContent = formatVal(t.pos[1], 0.01);
+            spPosZ.input.value = t.pos[2]; spPosZ.valEl.textContent = formatVal(t.pos[2], 0.01);
+            spRotX.input.value = t.rot[0]; spRotX.valEl.textContent = formatVal(t.rot[0], 1);
+            spRotY.input.value = t.rot[1]; spRotY.valEl.textContent = formatVal(t.rot[1], 1);
+            spRotZ.input.value = t.rot[2]; spRotZ.valEl.textContent = formatVal(t.rot[2], 1);
+            spScale.input.value = t.scale; spScale.valEl.textContent = formatVal(t.scale, 0.01);
+        }
+        syncSplatSliders();
+
+        // Copy splat position button
+        var copySplatBtn = document.createElement('button');
+        copySplatBtn.className = 'copy-btn';
+        copySplatBtn.textContent = 'copy splat position';
+        copySplatBtn.addEventListener('click', function () {
+            var t = charSplatTransforms[activeSplatName];
+            var out = activeSplatName + ' splat:\n';
+            out += '  pos(' + t.pos[0].toFixed(2) + ', ' + t.pos[1].toFixed(2) + ', ' + t.pos[2].toFixed(2) + ')\n';
+            out += '  rot(' + t.rot[0].toFixed(1) + ', ' + t.rot[1].toFixed(1) + ', ' + t.rot[2].toFixed(1) + ')\n';
+            out += '  scale(' + t.scale.toFixed(2) + ')';
+            navigator.clipboard.writeText(out);
+            copySplatBtn.textContent = 'copied!';
+            setTimeout(function () { copySplatBtn.textContent = 'copy splat position'; }, 1500);
+        });
+        secCharacters.appendChild(copySplatBtn);
 
         // ── Shot List Panel ──
 
