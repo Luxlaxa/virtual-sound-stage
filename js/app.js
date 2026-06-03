@@ -359,8 +359,8 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             splatAsset.on('load', function () {
                 console.log('[SPLAT-DEBUG] ' + name + ' asset loaded OK, resource:', splatAsset.resource);
                 var splatEntity = new pc.Entity(name + '-Splat');
-                splatEntity.addComponent('gsplat', { asset: splatAsset, layers: [charSplatLayer.id] });
-                console.log('[SPLAT-DEBUG] ' + name + ' gsplat component added on CharSplat layer:', splatEntity.gsplat);
+                splatEntity.addComponent('gsplat', { asset: splatAsset });
+                console.log('[SPLAT-DEBUG] ' + name + ' gsplat on default World layer. layers:', splatEntity.gsplat.layers);
 
                 // Use splat-specific transform (NOT the mesh rotation which is Z-up correction)
                 var t = charSplatTransforms[name];
@@ -524,8 +524,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         var camera = new pc.Entity('Camera');
         camera.addComponent('camera', {
             clearColor: new pc.Color(0.06, 0.06, 0.1),
-            fov: NEUTRAL_FOV, nearClip: 0.05, farClip: 2000,
-            layers: [worldLayer.id, charSplatLayer.id, app.scene.layers.getLayerByName('UI').id]
+            fov: NEUTRAL_FOV, nearClip: 0.05, farClip: 2000
         });
         // Start at eye level, slightly back, looking at the characters
         camera.setPosition(0, 1.65, 2.5);
