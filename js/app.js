@@ -1506,6 +1506,21 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         anaEdgeSoft.className = 'anamorphic-edge-soft';
         document.body.appendChild(anaEdgeSoft);
 
+        // Create chromatic aberration overlay
+        var caOverlay = document.createElement('div');
+        caOverlay.id = 'ca-overlay';
+        document.body.appendChild(caOverlay);
+
+        // Create lens haze overlay
+        var hazeOverlay = document.createElement('div');
+        hazeOverlay.id = 'haze-overlay';
+        document.body.appendChild(hazeOverlay);
+
+        // Create lens flare style overlay
+        var flareOverlay = document.createElement('div');
+        flareOverlay.className = 'lens-flare-overlay';
+        document.body.appendChild(flareOverlay);
+
         function updateLetterbox() {
             var vf = document.getElementById('viewfinder');
             var isActive = vf.classList.contains('active');
@@ -1691,6 +1706,79 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             dofOverlay.style.webkitMaskImage = maskVal;
         }
 
+        // ── Chromatic Aberration ──
+        function updateCA() {
+            var vf = document.getElementById('viewfinder');
+            if (!vf.classList.contains('active')) {
+                caOverlay.style.display = 'none';
+                return;
+            }
+
+            // CA amount based on lens characteristics
+            // Vintage/low-contrast lenses have more CA; high vignetting = more optical imperfection
+            var contrastCA = Math.max(0, (1 - activeLens.contrast) * 0.4);
+            var vigCA = (activeLens.vignetting || 0) * 0.3;
+            var caAmount = Math.min(0.25, contrastCA + vigCA);
+
+            if (caAmount < 0.02) {
+                caOverlay.style.display = 'none';
+                return;
+            }
+
+            caOverlay.style.display = 'block';
+            var px = Math.round(caAmount * 3); // 0-2px offset
+            var alpha = (caAmount * 0.3).toFixed(2);
+
+            caOverlay.style.boxShadow =
+                'inset ' + px + 'px 0 ' + (px * 2) + 'px rgba(255,0,0,' + alpha + '), ' +
+                'inset -' + px + 'px 0 ' + (px * 2) + 'px rgba(0,200,255,' + alpha + '), ' +
+                'inset 0 ' + px + 'px ' + (px * 2) + 'px rgba(255,0,0,' + (alpha * 0.5).toFixed(2) + '), ' +
+                'inset 0 -' + px + 'px ' + (px * 2) + 'px rgba(0,200,255,' + (alpha * 0.5).toFixed(2) + ')';
+        }
+
+        // ── Lens Haze / Veiling Flare ──
+        function updateLensHaze() {
+            var vf = document.getElementById('viewfinder');
+            if (!vf.classList.contains('active')) {
+                hazeOverlay.style.display = 'none';
+                return;
+            }
+
+            // Low contrast lenses have veiling haze
+            var hazeAmount = Math.max(0, (0.8 - activeLens.contrast) * 0.15);
+
+            if (hazeAmount < 0.01) {
+                hazeOverlay.style.display = 'none';
+                return;
+            }
+
+            hazeOverlay.style.display = 'block';
+            hazeOverlay.style.background = 'rgba(255,250,240,' + hazeAmount.toFixed(3) + ')';
+        }
+
+        // ── Lens Flare Style ──
+        function updateFlare() {
+            var vf = document.getElementById('viewfinder');
+            if (!vf.classList.contains('active')) {
+                flareOverlay.style.display = 'none';
+                return;
+            }
+
+            // Remove old style classes — reset to base
+            flareOverlay.className = 'lens-flare-overlay';
+
+            var style = activeLens.flareStyle || 'none';
+            if (style === 'none' || style === 'clean-minimal') {
+                flareOverlay.style.display = 'none';
+                return;
+            }
+
+            // Map flareStyle to CSS class (strip non-alpha/hyphen)
+            var cssClass = style.replace(/[^a-z-]/g, '');
+            flareOverlay.classList.add(cssClass);
+            flareOverlay.style.display = 'block';
+        }
+
         // Master function — call after any body/lens/aperture/viewfinder change
         function updateCameraLook() {
             // FOV: sensor-specific only in viewfinder, neutral otherwise
@@ -1705,6 +1793,9 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             updateVignette();
             updateAnamorphic();
             updateDOF();
+            updateCA();
+            updateLensHaze();
+            updateFlare();
             updateViewfinderInfo();
         }
 

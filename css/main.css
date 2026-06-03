@@ -355,6 +355,88 @@ canvas { width: 100vw; height: 100vh; display: block; }
 .select-row select:hover { border-color: #555; }
 .select-row select:focus { border-color: #e87400; }
 
+/* ── Chromatic Aberration Overlay ─────────────────────── */
+#ca-overlay {
+    position: fixed; inset: 0; pointer-events: none; z-index: 11;
+    display: none;
+}
+
+/* ── Lens Haze Overlay ───────────────────────────────── */
+#haze-overlay {
+    position: fixed; inset: 0; pointer-events: none; z-index: 11;
+    display: none; mix-blend-mode: screen;
+}
+
+/* ── Lens Flare Style Overlay ────────────────────────── */
+.lens-flare-overlay {
+    position: fixed; inset: 0; pointer-events: none; z-index: 11;
+    display: none; opacity: 0.5;
+}
+.lens-flare-overlay.warm-bloom {
+    background: radial-gradient(circle at 70% 30%, rgba(255,200,100,0.06) 0%, transparent 50%);
+}
+.lens-flare-overlay.warm-gold-bloom {
+    background: radial-gradient(circle at 65% 35%, rgba(255,210,80,0.07) 0%, transparent 50%);
+}
+.lens-flare-overlay.blue-bloom {
+    background: radial-gradient(circle at 70% 30%, rgba(100,150,255,0.05) 0%, transparent 50%);
+}
+.lens-flare-overlay.soft-amber {
+    background: radial-gradient(circle at 60% 40%, rgba(255,180,80,0.05) 0%, transparent 45%);
+}
+.lens-flare-overlay.warm-veiling {
+    background: radial-gradient(ellipse at center, rgba(255,240,200,0.06) 0%, transparent 60%);
+}
+.lens-flare-overlay.warm-ring {
+    background: radial-gradient(circle at 65% 35%, rgba(255,200,120,0.05) 0%, transparent 40%);
+}
+.lens-flare-overlay.controlled-ghost {
+    background: radial-gradient(circle at 55% 45%, rgba(200,220,255,0.04) 0%, transparent 50%);
+}
+.lens-flare-overlay.veiling-ghost {
+    background: radial-gradient(ellipse at center, rgba(255,250,240,0.05) 0%, transparent 55%);
+}
+.lens-flare-overlay.soft-warm {
+    background: radial-gradient(circle at 60% 40%, rgba(255,220,150,0.05) 0%, transparent 45%);
+}
+.lens-flare-overlay.warm-controlled {
+    background: radial-gradient(circle at 65% 35%, rgba(255,200,120,0.04) 0%, transparent 50%);
+}
+.lens-flare-overlay.cool-streak,
+.lens-flare-overlay.clean-streak {
+    background: linear-gradient(135deg, transparent 40%, rgba(100,150,255,0.04) 50%, transparent 60%);
+}
+.lens-flare-overlay.horizontal-blue-streak,
+.lens-flare-overlay.tunable-blue-streak,
+.lens-flare-overlay.blue-streak {
+    background: linear-gradient(90deg, transparent 30%, rgba(80,140,255,0.05) 50%, transparent 70%);
+}
+.lens-flare-overlay.amber-blue-streak {
+    background: linear-gradient(90deg, transparent 25%, rgba(255,180,60,0.04) 40%, rgba(80,140,255,0.04) 60%, transparent 75%);
+}
+.lens-flare-overlay.horizontal-streak {
+    background: linear-gradient(90deg, transparent 30%, rgba(200,220,255,0.04) 50%, transparent 70%);
+}
+.lens-flare-overlay.warm-purple-streak {
+    background: linear-gradient(90deg, transparent 25%, rgba(255,160,80,0.04) 40%, rgba(180,100,255,0.04) 60%, transparent 75%);
+}
+.lens-flare-overlay.warm-halation {
+    background: radial-gradient(circle at 60% 40%, rgba(255,220,150,0.08) 0%, transparent 40%);
+}
+.lens-flare-overlay.veiling-wash {
+    background: radial-gradient(ellipse at center, rgba(255,250,240,0.05) 0%, transparent 70%);
+}
+.lens-flare-overlay.multicolor-ghost {
+    background: radial-gradient(circle at 55% 45%, rgba(200,180,255,0.04) 0%, transparent 40%),
+                radial-gradient(circle at 70% 30%, rgba(255,200,100,0.03) 0%, transparent 35%);
+}
+.lens-flare-overlay.vintage-cooke-glow {
+    background: radial-gradient(circle at 60% 40%, rgba(255,210,150,0.07) 0%, transparent 45%);
+}
+.lens-flare-overlay.ethereal-veiling {
+    background: radial-gradient(ellipse at center, rgba(255,245,230,0.07) 0%, transparent 50%);
+}
+
 /* ── Collapsible Panel Sections ───────────────────────── */
 .panel-section { border-bottom: 1px solid #1a1a1a; }
 .panel-section:last-child { border-bottom: none; }
