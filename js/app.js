@@ -2979,7 +2979,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                 current.focalLength = focalLength;
                 current.aperture = aperture;
                 // Capture thumbnail of current view
-                current.thumbnail = canvas.toDataURL('image/jpeg', 0.3);
+                try { current.thumbnail = canvas.toDataURL('image/jpeg', 0.3); } catch(e) {}
             }
 
             // Load new camera
@@ -3082,6 +3082,16 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                     thumb.style.backgroundSize = 'cover';
                     thumb.style.backgroundPosition = 'center';
                 }
+
+                // Dark gradient overlay for text readability over thumbnails
+                var gradOverlay = document.createElement('div');
+                gradOverlay.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:24px;background:linear-gradient(transparent,rgba(0,0,0,0.75));border-radius:0 0 3px 3px;pointer-events:none;';
+                thumb.appendChild(gradOverlay);
+
+                // Top gradient for body label readability
+                var topGrad = document.createElement('div');
+                topGrad.style.cssText = 'position:absolute;top:0;left:0;right:0;height:16px;background:linear-gradient(rgba(0,0,0,0.6),transparent);border-radius:3px 3px 0 0;pointer-events:none;';
+                thumb.appendChild(topGrad);
 
                 var label = document.createElement('div');
                 label.className = 'cam-thumb-label';
@@ -3199,6 +3209,32 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             switchCamera(activeCamId);
         }
         renderCameraStrip();
+
+        // Capture initial thumbnail after first frame renders
+        app.once('frameend', function() {
+            var current = cameras.find(function(c) { return c.id === activeCamId; });
+            if (current) {
+                try { current.thumbnail = canvas.toDataURL('image/jpeg', 0.3); } catch(e) {}
+                renderCameraStrip();
+            }
+        });
+
+        // Periodic thumbnail update for active camera (every 3 seconds)
+        setInterval(function() {
+            var current = cameras.find(function(c) { return c.id === activeCamId; });
+            if (current) {
+                try {
+                    current.thumbnail = canvas.toDataURL('image/jpeg', 0.3);
+                    // Update just the active thumbnail's background without full re-render
+                    var activeThumb = document.querySelector('.cam-thumb.active');
+                    if (activeThumb && current.thumbnail) {
+                        activeThumb.style.backgroundImage = 'url(' + current.thumbnail + ')';
+                        activeThumb.style.backgroundSize = 'cover';
+                        activeThumb.style.backgroundPosition = 'center';
+                    }
+                } catch(e) {}
+            }
+        }, 3000);
 
         // Prevent camera strip from triggering orbit
         document.getElementById('camera-strip').addEventListener('mousedown', function (e) { e.stopPropagation(); });
