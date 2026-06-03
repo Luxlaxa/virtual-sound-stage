@@ -1501,6 +1501,11 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         anamorphicStreak.className = 'anamorphic-streak';
         document.body.appendChild(anamorphicStreak);
 
+        // Create anamorphic edge softness overlay
+        var anaEdgeSoft = document.createElement('div');
+        anaEdgeSoft.className = 'anamorphic-edge-soft';
+        document.body.appendChild(anaEdgeSoft);
+
         function updateLetterbox() {
             var vf = document.getElementById('viewfinder');
             var isActive = vf.classList.contains('active');
@@ -1624,10 +1629,27 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
 
         function updateAnamorphic() {
             var vf = document.getElementById('viewfinder');
-            if (activeLens.type === 'anamorphic' && vf.classList.contains('active')) {
-                anamorphicStreak.classList.add('active');
+            var isAna = activeLens.type === 'anamorphic';
+            var isVF = vf.classList.contains('active');
+
+            if (isAna && isVF) {
+                // Determine streak color from flareStyle
+                var flare = activeLens.flareStyle || 'blue-streak';
+                if (flare.includes('amber') || flare.includes('warm') || flare.includes('purple')) {
+                    anamorphicStreak.className = 'anamorphic-streak active warm';
+                } else {
+                    anamorphicStreak.className = 'anamorphic-streak active cool';
+                }
+
+                // Edge softness overlay
+                anaEdgeSoft.classList.add('active');
+
+                // Slight horizontal stretch to simulate anamorphic desqueeze
+                canvas.style.transform = 'scaleX(1.02)';
             } else {
-                anamorphicStreak.classList.remove('active');
+                anamorphicStreak.className = 'anamorphic-streak';
+                anaEdgeSoft.classList.remove('active');
+                canvas.style.transform = '';
             }
         }
 
