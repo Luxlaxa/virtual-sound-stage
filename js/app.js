@@ -308,6 +308,14 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         '</defs>';
         document.body.appendChild(fpSvg);
 
+        // ── Render layers: world splat first, character splats on top ──
+        var charSplatLayer = new pc.Layer({ name: 'CharSplat' });
+        var worldLayer = app.scene.layers.getLayerByName('World');
+        // Insert character splat layer right after the world layer so it renders on top
+        var worldLayerIdx = app.scene.layers.getTransparentIndex(worldLayer);
+        app.scene.layers.insertTransparent(charSplatLayer, worldLayerIdx + 1);
+        app.scene.layers.insertOpaque(charSplatLayer, app.scene.layers.getOpaqueIndex(worldLayer) + 1);
+
         // World splat
         var world = new pc.Entity('World');
         world.addComponent('gsplat', { asset: assets.splat });
@@ -340,15 +348,19 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         // Splat positioning — SAM 3D generates in its own coordinate space.
         // These defaults place the splat near the mesh. User can adjust via sliders.
         var charSplatTransforms = {
-            phop:    { pos: [-0.64, 0.5, 0.0], rot: [0, 0, 0], scale: 1.0 },
-            davinci: { pos: [0.11, 0.5, -0.01], rot: [0, 0, 0], scale: 1.0 }
+            phop:    { pos: [0, 0, 0], rot: [0, 0, 0], scale: 1.0 },
+            davinci: { pos: [0, 0, 0], rot: [0, 0, 0], scale: 1.0 }
         };
 
         function loadCharacterSplat(name, filename, callback) {
+            console.log('[SPLAT-DEBUG] loading ' + name + ' from ' + filename);
+            flashBadge('loading ' + name + ' splat...');
             var splatAsset = new pc.Asset(name + '-splat', 'gsplat', { url: filename });
             splatAsset.on('load', function () {
+                console.log('[SPLAT-DEBUG] ' + name + ' asset loaded OK, resource:', splatAsset.resource);
                 var splatEntity = new pc.Entity(name + '-Splat');
-                splatEntity.addComponent('gsplat', { asset: splatAsset });
+                splatEntity.addComponent('gsplat', { asset: splatAsset, layers: [charSplatLayer.id] });
+                console.log('[SPLAT-DEBUG] ' + name + ' gsplat component added on CharSplat layer:', splatEntity.gsplat);
 
                 // Use splat-specific transform (NOT the mesh rotation which is Z-up correction)
                 var t = charSplatTransforms[name];
@@ -356,15 +368,17 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                 splatEntity.setLocalEulerAngles(t.rot[0], t.rot[1], t.rot[2]);
                 splatEntity.setLocalScale(t.scale, t.scale, t.scale);
 
-                splatEntity.enabled = false; // start hidden
+                splatEntity.enabled = true; // start visible for debug
                 app.root.addChild(splatEntity);
                 charSplatEntities[name] = splatEntity;
                 charSplatAssets[name] = splatAsset;
+                console.log('[SPLAT-DEBUG] ' + name + ' entity added to scene, enabled:', splatEntity.enabled, 'pos:', splatEntity.getLocalPosition().toString());
+                flashBadge(name + ' splat loaded');
                 if (callback) callback(splatEntity);
             });
             splatAsset.on('error', function (err) {
-                console.warn('splat not available for ' + name + ':', err);
-                flashBadge('splat not found: ' + filename);
+                console.error('[SPLAT-DEBUG] ' + name + ' LOAD ERROR:', err);
+                flashBadge('SPLAT ERROR: ' + name + ' - ' + err);
             });
             app.assets.add(splatAsset);
             app.assets.load(splatAsset);
@@ -378,7 +392,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                 // Switch to splat
                 if (!splatEntity) {
                     // Try loading the splat file
-                    var filename = name === 'phop' ? 'phop-splat.ply' : 'davinci-splat.ply';
+                    var filename = name === 'phop' ? 'phop-splat.compressed.ply' : 'davinci-splat.compressed.ply';
                     flashBadge('loading ' + name + ' splat...');
                     loadCharacterSplat(name, filename, function (ent) {
                         if (meshEntity) meshEntity.enabled = false;
@@ -414,7 +428,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         }
 
         // Pre-check if splat files exist (try HEAD requests)
-        ['phop-splat.ply', 'davinci-splat.ply'].forEach(function (f) {
+        ['phop-splat.compressed.ply', 'davinci-splat.compressed.ply'].forEach(function (f) {
             fetch(f, { method: 'HEAD' }).then(function (r) {
                 if (r.ok) {
                     var name = f.startsWith('phop') ? 'phop' : 'davinci';
@@ -500,7 +514,8 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         var camera = new pc.Entity('Camera');
         camera.addComponent('camera', {
             clearColor: new pc.Color(0.06, 0.06, 0.1),
-            fov: NEUTRAL_FOV, nearClip: 0.05, farClip: 2000
+            fov: NEUTRAL_FOV, nearClip: 0.05, farClip: 2000,
+            layers: [worldLayer.id, charSplatLayer.id, app.scene.layers.getLayerByName('UI').id]
         });
         // Start at eye level, slightly back, looking at the characters
         camera.setPosition(0, 1.65, 2.5);
