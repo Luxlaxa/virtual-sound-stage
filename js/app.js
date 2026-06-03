@@ -282,6 +282,31 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         document.getElementById('camera-panel').style.display = '';
         document.getElementById('transform-panel').style.display = '';
 
+        // ── Focus Peaking SVG Filter ──
+        var focusPeakingEnabled = false;
+        var focusPeakingColor = 'red'; // 'red', 'green', 'blue'
+
+        var fpSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        fpSvg.style.cssText = 'position:absolute;width:0;height:0;';
+        fpSvg.innerHTML = '<defs>' +
+            '<filter id="focus-peak-red">' +
+                '<feConvolveMatrix order="3" kernelMatrix="-1 -1 -1 -1 8 -1 -1 -1 -1" preserveAlpha="true" result="edges"/>' +
+                '<feColorMatrix type="matrix" in="edges" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 3 -0.5" result="red-edges"/>' +
+                '<feBlend mode="screen" in="SourceGraphic" in2="red-edges"/>' +
+            '</filter>' +
+            '<filter id="focus-peak-green">' +
+                '<feConvolveMatrix order="3" kernelMatrix="-1 -1 -1 -1 8 -1 -1 -1 -1" preserveAlpha="true" result="edges"/>' +
+                '<feColorMatrix type="matrix" in="edges" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 3 -0.5" result="green-edges"/>' +
+                '<feBlend mode="screen" in="SourceGraphic" in2="green-edges"/>' +
+            '</filter>' +
+            '<filter id="focus-peak-blue">' +
+                '<feConvolveMatrix order="3" kernelMatrix="-1 -1 -1 -1 8 -1 -1 -1 -1" preserveAlpha="true" result="edges"/>' +
+                '<feColorMatrix type="matrix" in="edges" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 3 -0.5" result="blue-edges"/>' +
+                '<feBlend mode="screen" in="SourceGraphic" in2="blue-edges"/>' +
+            '</filter>' +
+        '</defs>';
+        document.body.appendChild(fpSvg);
+
         // World splat
         var world = new pc.Entity('World');
         world.addComponent('gsplat', { asset: assets.splat });
@@ -1523,6 +1548,43 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             updateDOF();
         });
 
+        // Focus peaking toggle and color selector
+        var fpLabel = document.createElement('div');
+        fpLabel.className = 'section-label';
+        fpLabel.textContent = 'focus peaking';
+        secDOF.appendChild(fpLabel);
+
+        var fpRow = document.createElement('div');
+        fpRow.className = 'lock-row';
+
+        var fpBtn = document.createElement('button');
+        fpBtn.className = 'lock-btn';
+        fpBtn.textContent = 'peaking off';
+        fpBtn.addEventListener('click', function () {
+            focusPeakingEnabled = !focusPeakingEnabled;
+            fpBtn.className = 'lock-btn' + (focusPeakingEnabled ? ' active' : '');
+            fpBtn.textContent = focusPeakingEnabled ? 'peaking on' : 'peaking off';
+            updateColorScience();
+        });
+        fpRow.appendChild(fpBtn);
+
+        var fpColorBtn = document.createElement('button');
+        fpColorBtn.className = 'lock-btn';
+        fpColorBtn.style.color = '#f44';
+        fpColorBtn.textContent = 'red';
+        fpColorBtn.addEventListener('click', function () {
+            var colors = ['red', 'green', 'blue'];
+            var colorCSS = ['#f44', '#4f4', '#44f'];
+            var idx = (colors.indexOf(focusPeakingColor) + 1) % 3;
+            focusPeakingColor = colors[idx];
+            fpColorBtn.style.color = colorCSS[idx];
+            fpColorBtn.textContent = focusPeakingColor;
+            if (focusPeakingEnabled) updateColorScience();
+        });
+        fpRow.appendChild(fpColorBtn);
+
+        secDOF.appendChild(fpRow);
+
         // ── POV ADJUST SECTION ──
         var povInfo = document.createElement('div');
         povInfo.className = 'lens-info';
@@ -2083,7 +2145,11 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             var vf = document.getElementById('viewfinder');
             if (!vf.classList.contains('active')) {
                 // Outside viewfinder: only apply lighting color grade
-                canvas.style.filter = lightingFilter || 'none';
+                if (focusPeakingEnabled) {
+                    canvas.style.filter = (lightingFilter || '') + ' url(#focus-peak-' + focusPeakingColor + ')';
+                } else {
+                    canvas.style.filter = lightingFilter || 'none';
+                }
                 return;
             }
 
@@ -2110,6 +2176,11 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             filter += 'saturate(' + saturate.toFixed(2) + ') ';
             if (sepia > 0.5) filter += 'sepia(' + sepia.toFixed(0) + '%) ';
             if (Math.abs(hueRotate) > 0.5) filter += 'hue-rotate(' + hueRotate.toFixed(1) + 'deg) ';
+
+            // Append focus peaking SVG filter if enabled
+            if (focusPeakingEnabled) {
+                filter += ' url(#focus-peak-' + focusPeakingColor + ')';
+            }
 
             canvas.style.filter = filter;
         }
