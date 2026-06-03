@@ -1160,6 +1160,147 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
 
         secAnimation.appendChild(animPlayRow);
 
+        // ── QUICK CAMERA SETUP (Film Grammar) ──
+
+        var filmSetups = [
+            {
+                label: 'Master Wide',
+                description: 'Establishing wide shot showing both characters and environment',
+                position: [0, 1.65, 4.0],
+                rotation: [-5, 0, 0],
+                focalLength: 24,
+                shotType: 'establishing'
+            },
+            {
+                label: 'Medium Two-Shot',
+                description: 'Both characters in frame at medium distance',
+                position: [-0.27, 1.1, 2.2],
+                rotation: [-3, 0, 0],
+                focalLength: 35,
+                shotType: 'two-shot'
+            },
+            {
+                label: 'OTS Phop \u2192 Davinci',
+                description: 'Over Phops shoulder, Davinci in focus',
+                position: [-0.45, 0.7, 0.6],
+                rotation: [-5, -50, 0],
+                focalLength: 50,
+                shotType: 'ots'
+            },
+            {
+                label: 'OTS Davinci \u2192 Phop',
+                description: 'Over Davincis shoulder, Phop in focus',
+                position: [0.0, 0.7, 0.6],
+                rotation: [-5, 50, 0],
+                focalLength: 50,
+                shotType: 'ots'
+            },
+            {
+                label: 'CU Phop',
+                description: 'Close-up on Phop face',
+                position: [-0.50, 0.65, 0.5],
+                rotation: [-3, -25, 0],
+                focalLength: 85,
+                shotType: 'close-up'
+            },
+            {
+                label: 'CU Davinci',
+                description: 'Close-up on Davinci face',
+                position: [0.0, 0.68, 0.5],
+                rotation: [-3, 25, 0],
+                focalLength: 85,
+                shotType: 'close-up'
+            },
+            {
+                label: 'Low Angle Wide',
+                description: 'Low angle establishing shot, dramatic',
+                position: [-0.27, 0.2, 3.0],
+                rotation: [10, 0, 0],
+                focalLength: 24,
+                shotType: 'wide'
+            },
+            {
+                label: 'High Angle',
+                description: 'High angle looking down on both characters',
+                position: [-0.27, 2.5, 2.0],
+                rotation: [-25, 0, 0],
+                focalLength: 35,
+                shotType: 'wide'
+            },
+            {
+                label: 'Phop POV',
+                description: 'Point of view from Phops eyes',
+                position: [-0.580, 0.580, -0.002],
+                rotation: [-2, -90.8, 0],
+                focalLength: 35,
+                shotType: 'pov'
+            },
+            {
+                label: 'Davinci POV',
+                description: 'Point of view from Davincis eyes',
+                position: [0.050, 0.600, -0.008],
+                rotation: [-9, 92, 0],
+                focalLength: 35,
+                shotType: 'pov'
+            }
+        ];
+
+        var qsLabel = document.createElement('div');
+        qsLabel.className = 'section-label';
+        qsLabel.textContent = 'quick camera setup';
+        secAnimation.appendChild(qsLabel);
+
+        var qsInfo = document.createElement('div');
+        qsInfo.className = 'lens-info';
+        qsInfo.textContent = 'auto-create cameras for dialogue scene';
+        secAnimation.appendChild(qsInfo);
+
+        var qsAllBtn = document.createElement('button');
+        qsAllBtn.className = 'lock-btn';
+        qsAllBtn.style.cssText = 'width:100%;margin-bottom:6px;';
+        qsAllBtn.textContent = 'create all standard angles';
+        qsAllBtn.addEventListener('click', function() {
+            filmSetups.forEach(function(setup) {
+                addCamera({
+                    name: setup.label,
+                    focalLength: setup.focalLength,
+                    aperture: 2.8,
+                    position: new pc.Vec3(setup.position[0], setup.position[1], setup.position[2]),
+                    rotation: new pc.Vec3(setup.rotation[0], setup.rotation[1], setup.rotation[2]),
+                    shotType: setup.shotType,
+                    shotDescription: setup.description
+                });
+            });
+            flashBadge('10 cameras created');
+        });
+        secAnimation.appendChild(qsAllBtn);
+
+        var qsGrid = document.createElement('div');
+        qsGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:3px;';
+
+        filmSetups.forEach(function(setup) {
+            var btn = document.createElement('button');
+            btn.className = 'lock-btn';
+            btn.style.fontSize = '8px';
+            btn.textContent = setup.label;
+            btn.title = setup.description;
+            btn.addEventListener('click', function() {
+                addCamera({
+                    name: setup.label,
+                    focalLength: setup.focalLength,
+                    aperture: 2.8,
+                    position: new pc.Vec3(setup.position[0], setup.position[1], setup.position[2]),
+                    rotation: new pc.Vec3(setup.rotation[0], setup.rotation[1], setup.rotation[2]),
+                    shotType: setup.shotType,
+                    shotDescription: setup.description
+                });
+                switchCamera(cameras[cameras.length - 1].id);
+                flashBadge(setup.label);
+            });
+            qsGrid.appendChild(btn);
+        });
+        secAnimation.appendChild(qsGrid);
+
         function renderKeyframeList() {
             kfListEl.innerHTML = '';
             cameraPath.keyframes.forEach(function(kf, i) {
