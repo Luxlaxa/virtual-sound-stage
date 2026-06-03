@@ -1,0 +1,326 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #0a0a0f; }
+canvas { width: 100vw; height: 100vh; display: block; }
+
+/* ── Loading ───────────────────────────────────────────────── */
+#loading {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #0a0a0f; color: #888; font-family: 'SF Mono', 'Fira Code', monospace; z-index: 50;
+}
+#loading h1 { font-size: 13px; font-weight: 400; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 24px; color: #555; }
+.bar { width: 280px; height: 2px; background: #222; border-radius: 1px; }
+.fill { height: 100%; background: #e87400; border-radius: 1px; transition: width 0.4s ease; width: 0%; }
+.status { margin-top: 14px; font-size: 11px; color: #444; }
+
+/* ── Shared Panel ──────────────────────────────────────────── */
+.panel {
+    position: fixed; width: 270px;
+    background: rgba(10,10,15,0.92); border: 1px solid #222;
+    border-radius: 6px; font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 10px; color: #888; z-index: 20; backdrop-filter: blur(8px);
+    max-height: calc(100vh - 24px); overflow-y: auto;
+}
+.panel::-webkit-scrollbar { width: 4px; }
+.panel::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+.panel-toggle {
+    display: block; width: 100%; padding: 8px 12px;
+    background: none; border: none; color: #e87400;
+    font-family: inherit; font-size: 10px; cursor: pointer;
+    text-align: left; letter-spacing: 1px; text-transform: uppercase;
+}
+.panel-toggle:hover { color: #ff9330; }
+.panel-body { padding: 0 12px 12px; }
+.section-label { color: #444; margin: 8px 0 3px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+.entity-group { margin-bottom: 8px; }
+.entity-group h3 { font-size: 10px; font-weight: 600; color: #e87400; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 1px; }
+
+/* ── Slider Row ────────────────────────────────────────────── */
+.slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.slider-row label { width: 18px; color: #555; text-align: right; flex-shrink: 0; }
+.slider-row input[type=range] {
+    flex: 1; height: 2px; -webkit-appearance: none; appearance: none;
+    background: #333; outline: none; border-radius: 1px;
+}
+.slider-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 10px; height: 10px;
+    background: #e87400; border-radius: 50%; cursor: pointer;
+}
+.slider-row .val {
+    width: 48px; color: #666; text-align: right; flex-shrink: 0;
+    font-variant-numeric: tabular-nums; cursor: pointer;
+    border-bottom: 1px dashed transparent;
+}
+.slider-row .val:hover { border-bottom-color: #444; color: #aaa; }
+.slider-row .val-input {
+    width: 48px; background: #1a1a22; border: 1px solid #e87400; border-radius: 2px;
+    color: #e87400; font-family: inherit; font-size: 10px; text-align: right;
+    padding: 1px 3px; outline: none;
+}
+
+/* ── Right Panel (Transforms) ──────────────────────────────── */
+#transform-panel { top: 12px; right: 12px; }
+
+/* ── Left Panel (Camera) ───────────────────────────────────── */
+#camera-panel { top: 12px; left: 12px; }
+.cam-mode-row { display: flex; gap: 4px; margin-bottom: 6px; }
+.cam-mode-btn {
+    flex: 1; padding: 4px 0; background: #1a1a22; border: 1px solid #333;
+    border-radius: 3px; color: #666; font-family: inherit; font-size: 9px;
+    cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.cam-mode-btn.active { border-color: #e87400; color: #e87400; }
+.cam-mode-btn:hover { border-color: #555; }
+.lens-info { color: #444; font-size: 9px; font-style: italic; margin: 2px 0 6px 24px; }
+.lock-row { display: flex; gap: 4px; margin-top: 6px; }
+.lock-btn {
+    flex: 1; padding: 5px 0; background: #1a1a22; border: 1px solid #333;
+    border-radius: 3px; color: #666; font-family: inherit; font-size: 9px;
+    cursor: pointer; text-align: center;
+}
+.lock-btn.active { border-color: #e87400; color: #e87400; background: rgba(232,116,0,0.08); }
+.lock-btn:hover { border-color: #555; }
+
+/* ── Viewfinder Overlay ─────────────────────────────────────── */
+#viewfinder {
+    position: fixed; inset: 0; pointer-events: none; z-index: 15; display: none;
+}
+#viewfinder.active { display: block; }
+.vf-grid { position: absolute; inset: 5%; border: 1px solid rgba(255,255,255,0.15); }
+.vf-third-v, .vf-third-h {
+    position: absolute; background: rgba(255,255,255,0.08);
+}
+.vf-third-v { width: 1px; top: 0; bottom: 0; }
+.vf-third-h { height: 1px; left: 0; right: 0; }
+.vf-cross {
+    position: absolute; top: 50%; left: 50%;
+    width: 20px; height: 20px; transform: translate(-50%, -50%);
+}
+.vf-cross::before, .vf-cross::after {
+    content: ''; position: absolute; background: rgba(255,255,255,0.25);
+}
+.vf-cross::before { width: 1px; height: 100%; left: 50%; top: 0; }
+.vf-cross::after { height: 1px; width: 100%; top: 50%; left: 0; }
+.vf-safe {
+    position: absolute; border: 1px dashed rgba(255,255,255,0.06);
+}
+.vf-safe.action { inset: 5%; }
+.vf-safe.title { inset: 10%; }
+.vf-info {
+    position: absolute; bottom: 6%; left: 6%;
+    color: rgba(255,255,255,0.35); font-family: 'SF Mono', monospace;
+    font-size: 11px; letter-spacing: 1px;
+}
+.vf-info-right {
+    position: absolute; bottom: 6%; right: 6%;
+    color: rgba(255,255,255,0.35); font-family: 'SF Mono', monospace;
+    font-size: 11px; letter-spacing: 1px; text-align: right;
+}
+.vf-rec {
+    position: absolute; top: 6%; left: 6%;
+    color: rgba(255,80,80,0.6); font-family: 'SF Mono', monospace;
+    font-size: 10px; letter-spacing: 1px;
+}
+.vf-vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,var(--vig)) 100%);
+    transition: background 0.3s ease;
+}
+
+/* Anamorphic vignette — oval, wider spread */
+.vf-vignette.anamorphic {
+    background: radial-gradient(ellipse 120% 80% at center,
+        transparent 40%, rgba(0,0,0,var(--vig)) 100%) !important;
+}
+
+/* ── Letterbox Bars ───────────────────────────────────────── */
+.letterbox-bar {
+    position: fixed; background: rgba(0,0,0,0.88);
+    z-index: 14; pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+/* ── Anamorphic Streak Overlay ────────────────────────────── */
+.anamorphic-streak {
+    position: fixed; inset: 0; pointer-events: none; z-index: 14;
+    background: linear-gradient(
+        0deg,
+        transparent 0%,
+        transparent 45%,
+        rgba(100,150,255,0.03) 48%,
+        rgba(150,200,255,0.05) 50%,
+        rgba(100,150,255,0.03) 52%,
+        transparent 55%,
+        transparent 100%
+    );
+    display: none;
+}
+.anamorphic-streak.active { display: block; }
+
+/* ── Per-Body Viewfinder Styles ────────────────────────────── */
+
+/* ARRI viewfinder — clean white on dark, minimal */
+#viewfinder[data-style="arri"] .vf-info,
+#viewfinder[data-style="arri"] .vf-info-right { color: rgba(255,255,255,0.7); }
+#viewfinder[data-style="arri"] .vf-rec { color: rgba(255,80,80,0.7); }
+#viewfinder[data-style="arri"] .vf-grid { border-color: rgba(255,255,255,0.12); }
+
+/* RED viewfinder — red accents, modular */
+#viewfinder[data-style="red"] .vf-info,
+#viewfinder[data-style="red"] .vf-info-right { color: rgba(204,34,34,0.8); }
+#viewfinder[data-style="red"] .vf-rec { color: rgba(204,34,34,0.9); }
+#viewfinder[data-style="red"] .vf-grid { border-color: rgba(204,34,34,0.2); }
+#viewfinder[data-style="red"] .vf-third-v,
+#viewfinder[data-style="red"] .vf-third-h { background: rgba(204,34,34,0.1); }
+#viewfinder[data-style="red"] .vf-safe { border-color: rgba(204,34,34,0.1); }
+
+/* Sony viewfinder — blue accents */
+#viewfinder[data-style="sony"] .vf-info,
+#viewfinder[data-style="sony"] .vf-info-right { color: rgba(51,102,204,0.8); }
+#viewfinder[data-style="sony"] .vf-rec { color: rgba(255,80,80,0.7); }
+#viewfinder[data-style="sony"] .vf-grid { border-color: rgba(51,102,204,0.15); }
+#viewfinder[data-style="sony"] .vf-third-v,
+#viewfinder[data-style="sony"] .vf-third-h { background: rgba(51,102,204,0.08); }
+
+/* Blackmagic viewfinder — subtle blue */
+#viewfinder[data-style="blackmagic"] .vf-info,
+#viewfinder[data-style="blackmagic"] .vf-info-right { color: rgba(51,170,255,0.7); }
+#viewfinder[data-style="blackmagic"] .vf-rec { color: rgba(51,170,255,0.8); }
+#viewfinder[data-style="blackmagic"] .vf-grid { border-color: rgba(51,170,255,0.12); }
+
+/* IMAX viewfinder — gold accent, minimal chrome */
+#viewfinder[data-style="imax"] .vf-info,
+#viewfinder[data-style="imax"] .vf-info-right { color: rgba(255,170,0,0.8); font-size: 13px; }
+#viewfinder[data-style="imax"] .vf-rec { color: rgba(255,170,0,0.8); }
+#viewfinder[data-style="imax"] .vf-grid { border-color: rgba(255,170,0,0.15); }
+
+/* Panavision viewfinder — golden/warm */
+#viewfinder[data-style="panavision"] .vf-info,
+#viewfinder[data-style="panavision"] .vf-info-right { color: rgba(212,170,100,0.8); }
+#viewfinder[data-style="panavision"] .vf-rec { color: rgba(212,170,100,0.8); }
+#viewfinder[data-style="panavision"] .vf-grid { border-color: rgba(212,170,100,0.15); }
+
+/* Canon viewfinder — white/grey broadcast style */
+#viewfinder[data-style="canon"] .vf-info,
+#viewfinder[data-style="canon"] .vf-info-right { color: rgba(200,200,200,0.7); }
+#viewfinder[data-style="canon"] .vf-rec { color: rgba(255,80,80,0.7); }
+#viewfinder[data-style="canon"] .vf-grid { border-color: rgba(200,200,200,0.12); }
+
+/* ── Settings Modal ────────────────────────────────────────── */
+#settings-modal {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.7); z-index: 40; backdrop-filter: blur(4px);
+}
+#settings-modal.active { display: flex; }
+.settings-box {
+    width: 420px; max-height: 80vh; overflow-y: auto;
+    background: #111118; border: 1px solid #333; border-radius: 8px;
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; color: #888;
+    padding: 20px;
+}
+.settings-box h2 { font-size: 13px; color: #e87400; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 2px; font-weight: 400; }
+.settings-section { margin-bottom: 14px; }
+.settings-section h3 { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.bind-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+.bind-row span { color: #777; }
+.bind-key {
+    min-width: 36px; padding: 3px 8px; background: #1a1a22; border: 1px solid #333;
+    border-radius: 3px; color: #aaa; font-family: inherit; font-size: 10px;
+    cursor: pointer; text-align: center; text-transform: uppercase;
+}
+.bind-key:hover { border-color: #e87400; }
+.bind-key.listening { border-color: #e87400; color: #e87400; animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }
+.settings-footer { margin-top: 16px; display: flex; gap: 8px; }
+.settings-btn {
+    padding: 6px 14px; background: #1a1a22; border: 1px solid #333;
+    border-radius: 3px; color: #888; font-family: inherit; font-size: 10px; cursor: pointer;
+}
+.settings-btn:hover { border-color: #e87400; color: #e87400; }
+
+/* ── HUD ───────────────────────────────────────────────────── */
+#hud {
+    position: fixed; bottom: 16px; left: 16px; color: #444;
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px;
+    line-height: 1.8; pointer-events: none; z-index: 5;
+}
+#hud kbd { color: #e87400; background: none; border: none; padding: 0; font-family: inherit; font-size: inherit; }
+#mode-badge {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    color: #e87400; font-family: 'SF Mono', monospace; font-size: 14px;
+    letter-spacing: 3px; text-transform: uppercase; opacity: 0;
+    transition: opacity 0.3s; pointer-events: none; z-index: 16;
+}
+
+.copy-btn {
+    display: block; width: 100%; margin-top: 8px; padding: 6px;
+    background: #1a1a22; border: 1px solid #333; border-radius: 3px;
+    color: #888; font-family: inherit; font-size: 10px; cursor: pointer;
+}
+.copy-btn:hover { border-color: #e87400; color: #e87400; }
+
+/* ── Camera Strip ─────────────────────────────────────────── */
+#camera-strip {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
+    background: rgba(10,10,15,0.95); border-top: 1px solid #222;
+    display: flex; align-items: center; gap: 6px; padding: 0 12px;
+    font-family: 'SF Mono', 'Fira Code', monospace; z-index: 20;
+    overflow-x: auto;
+}
+.cam-thumb {
+    flex-shrink: 0; width: 96px; height: 54px;
+    border: 1px solid #333; border-radius: 4px;
+    background: #111; cursor: pointer; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: #555; text-transform: uppercase;
+    letter-spacing: 0.5px; overflow: hidden;
+}
+.cam-thumb.active { border-color: #e87400; color: #e87400; }
+.cam-thumb:hover { border-color: #555; }
+.cam-thumb-label {
+    position: absolute; bottom: 2px; left: 4px;
+    font-size: 8px; color: inherit; pointer-events: none;
+}
+.cam-thumb-body {
+    position: absolute; top: 2px; right: 4px;
+    font-size: 7px; color: #444; pointer-events: none;
+}
+.cam-add {
+    flex-shrink: 0; width: 36px; height: 54px;
+    border: 1px dashed #333; border-radius: 4px;
+    background: none; cursor: pointer; color: #444;
+    font-size: 18px; display: flex; align-items: center;
+    justify-content: center; font-family: inherit;
+}
+.cam-add:hover { border-color: #e87400; color: #e87400; }
+#snapshot-flash {
+    position: fixed; inset: 0; background: white; opacity: 0;
+    pointer-events: none; z-index: 100; transition: opacity 0.15s;
+}
+#snapshot-flash.flash { opacity: 0.3; }
+.select-row { margin-bottom: 4px; }
+.select-row select {
+    width: 100%; padding: 4px 6px;
+    background: #1a1a22; border: 1px solid #333; border-radius: 3px;
+    color: #aaa; font-family: inherit; font-size: 9px;
+    cursor: pointer; outline: none;
+}
+.select-row select:hover { border-color: #555; }
+.select-row select:focus { border-color: #e87400; }
+
+/* ── Collapsible Panel Sections ───────────────────────── */
+.panel-section { border-bottom: 1px solid #1a1a1a; }
+.panel-section:last-child { border-bottom: none; }
+.panel-section-header {
+    padding: 7px 0; cursor: pointer; color: #e87400;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; user-select: none;
+    display: flex; align-items: center; gap: 6px;
+}
+.panel-section-header:hover { color: #ff9330; }
+.panel-section-header .arrow {
+    font-size: 8px; width: 10px; display: inline-block;
+    transition: transform 0.2s;
+}
+.panel-section-body { padding-bottom: 6px; }
+.panel-section-body.collapsed { display: none; }

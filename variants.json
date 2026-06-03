@@ -1,0 +1,8 @@
+{
+  "base": {
+    "file": "still-220723.compressed.ply",
+    "label": "Original (Golden Hour)",
+    "description": "Baked golden hour lighting from World Labs generation"
+  },
+  "variants": []
+}

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>still-220723 — Golden Gate Waterfront</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <canvas id="app"></canvas>
+
+    <div id="loading">
+        <h1>image-blaster // still-220723</h1>
+        <div class="bar"><div class="fill" id="bar"></div></div>
+        <div class="status" id="status">initializing engine...</div>
+    </div>
+
+    <!-- Camera Panel (left) -->
+    <div id="camera-panel" class="panel" style="display:none">
+        <button class="panel-toggle" id="cam-toggle">camera &#x25BE;</button>
+        <div class="panel-body" id="cam-body"></div>
+    </div>
+
+    <!-- Transform Panel (right) -->
+    <div id="transform-panel" class="panel" style="display:none">
+        <button class="panel-toggle" id="xform-toggle">transforms &#x25BE;</button>
+        <div class="panel-body" id="xform-body"></div>
+    </div>
+
+    <!-- Viewfinder Overlay -->
+    <div id="viewfinder">
+        <div class="vf-vignette"></div>
+        <div class="vf-grid">
+            <div class="vf-third-v" style="left:33.33%"></div>
+            <div class="vf-third-v" style="left:66.66%"></div>
+            <div class="vf-third-h" style="top:33.33%"></div>
+            <div class="vf-third-h" style="top:66.66%"></div>
+            <div class="vf-cross"></div>
+        </div>
+        <div class="vf-safe action"></div>
+        <div class="vf-safe title"></div>
+        <div class="vf-rec">&#x25CF; REC</div>
+        <div class="vf-info" id="vf-info-left">50mm  f/2.8</div>
+        <div class="vf-info-right" id="vf-info-right">16:9  24fps</div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal">
+        <div class="settings-box">
+            <h2>hotkey settings</h2>
+            <div id="settings-bindings"></div>
+            <div class="settings-footer">
+                <button class="settings-btn" id="settings-reset">reset defaults</button>
+                <button class="settings-btn" id="settings-close">close (esc)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mode Badge -->
+    <div id="mode-badge"></div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <kbd>drag</kbd> orbit · <kbd>scroll</kbd> zoom · <kbd>shift+drag</kbd> pan · <kbd>esc</kbd> settings<br>
+        <kbd>space</kbd> capture · <kbd>shift+space</kbd> capture all cameras · <kbd>tab</kbd> next camera<br>
+        <span id="hud-mode">orbit</span> · <span id="hud-extra"></span>
+    </div>
+
+    <!-- Camera Strip -->
+    <div id="camera-strip" style="display:none"></div>
+
+    <!-- Snapshot Flash -->
+    <div id="snapshot-flash"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/playcanvas@2/build/playcanvas.min.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
