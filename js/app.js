@@ -152,6 +152,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
 
     var NEUTRAL_FOV = 45; // default FOV for orbit/fly (no cinema body applied)
     var deliveryAspect = 0; // 0 = use sensor native, otherwise override (e.g., 2.39, 1.85)
+    var vfElapsedTime = 0; // viewfinder timecode accumulator
 
     function focalToFov(f) {
         return fovForBody(activeBody, f);
@@ -782,6 +783,17 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
 
             // Update viewfinder info
             updateViewfinderInfo();
+
+            // Update viewfinder timecode
+            vfElapsedTime += dt;
+            var vfTC = document.getElementById('vf-timecode');
+            if (vfTC) {
+                var h = Math.floor(vfElapsedTime / 3600) % 24;
+                var m = Math.floor(vfElapsedTime / 60) % 60;
+                var s = Math.floor(vfElapsedTime) % 60;
+                var f = Math.floor((vfElapsedTime % 1) * 24); // 24fps
+                vfTC.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + ':' + String(f).padStart(2,'0');
+            }
         });
 
         // ───────────────────────────────────────────────────────────
@@ -2385,16 +2397,69 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         updateCameraLook();
 
         function updateViewfinderInfo() {
-            var lensName = activeLens.name;
-            var flText = Math.round(focalLength) + 'mm';
-            var apText = 'T' + aperture.toFixed(1);
-            document.getElementById('vf-info-left').textContent = activeBody.name + ' | ' + lensName + ' ' + flText + ' ' + apText;
+            var body = activeBody;
+            var lens = activeLens;
+            var style = body.viewfinderStyle;
+            var vfLeft = document.getElementById('vf-info-left');
+            var vfRight = document.getElementById('vf-info-right');
+            var vfRec = document.querySelector('.vf-rec');
 
-            var sensorFormat = activeBody.sensorWidth >= 36 ? 'LF' : activeBody.sensorWidth >= 27 ? 'S35' : 'S16';
-            var sensorDims = activeBody.sensorWidth.toFixed(2) + '\u00D7' + activeBody.sensorHeight.toFixed(2);
-            var sensorAR = (activeBody.sensorWidth / activeBody.sensorHeight).toFixed(2) + ':1';
+            var sensorFormat = body.sensorWidth > 50 ? '65mm' : body.sensorWidth > 33 ? 'LF' : body.sensorWidth > 25 ? 'S35' : 'S35';
+            var sensorDims = body.sensorWidth.toFixed(1) + '\u00D7' + body.sensorHeight.toFixed(1);
+            var sensorAR = (body.sensorWidth / body.sensorHeight).toFixed(2) + ':1';
             var displayAR = deliveryAspect > 0 ? deliveryAspect.toFixed(2) + ':1' : sensorAR;
-            document.getElementById('vf-info-right').textContent = sensorFormat + ' ' + sensorDims + ' | ' + displayAR + ' | 24fps';
+
+            if (style === 'arri') {
+                // ARRI style: clean, minimal, white on dark
+                vfLeft.textContent = body.name + '  ' + lens.name + ' ' + Math.round(focalLength) + 'mm  T' + aperture.toFixed(1);
+                vfRight.textContent = displayAR + '  ' + sensorFormat + '  24.000';
+                vfRec.textContent = '\u25CF REC  ' + body.colorScience;
+
+            } else if (style === 'red') {
+                // RED style: modular blocks, technical info
+                vfLeft.textContent = 'R3D  ' + body.resolution + '  ' + Math.round(focalLength) + 'mm  T' + aperture.toFixed(1);
+                vfRight.textContent = body.name + '  ' + displayAR + '  ISO ' + (body.nativeISO || '800');
+                vfRec.textContent = '\u25A0 REC  IPP2  ' + lens.manufacturer + ' ' + lens.name;
+
+            } else if (style === 'sony') {
+                // Sony style: clean info bars
+                vfLeft.textContent = body.name + '  ' + lens.name + '  ' + Math.round(focalLength) + 'mm';
+                vfRight.textContent = 'T' + aperture.toFixed(1) + '  ' + displayAR + '  S-Log3';
+                vfRec.textContent = '\u25CFREC  X-OCN  ' + sensorFormat + ' ' + sensorDims;
+
+            } else if (style === 'blackmagic') {
+                // Blackmagic style: simple, clean
+                vfLeft.textContent = body.name + '  BRAW  ' + Math.round(focalLength) + 'mm  T' + aperture.toFixed(1);
+                vfRight.textContent = displayAR + '  Gen5  ISO ' + (body.nativeISO || '800');
+                vfRec.textContent = '\u25CF REC  ' + lens.manufacturer + ' ' + lens.name;
+
+            } else if (style === 'imax') {
+                // IMAX style: minimal, grand
+                vfLeft.textContent = 'IMAX  ' + lens.name + '  ' + Math.round(focalLength) + 'mm';
+                vfRight.textContent = '1.43:1  15/70  ' + sensorDims;
+                vfRec.textContent = 'IMAX  \u25CF';
+
+            } else if (style === 'panavision') {
+                // Panavision style: classic Hollywood
+                vfLeft.textContent = 'PANAVISION  ' + body.name + '  ' + lens.name;
+                vfRight.textContent = Math.round(focalLength) + 'mm  T' + aperture.toFixed(1) + '  ' + displayAR;
+                vfRec.textContent = '\u25CF FILMING  LiColor2';
+
+            } else if (style === 'canon') {
+                // Canon style: broadcast/cinema hybrid
+                vfLeft.textContent = body.name + '  ' + lens.name + '  ' + Math.round(focalLength) + 'mm';
+                vfRight.textContent = 'T' + aperture.toFixed(1) + '  ' + displayAR + '  C-Log2';
+                vfRec.textContent = '\u25CFREC  Canon Cinema  ' + sensorFormat;
+
+            } else {
+                // Default
+                vfLeft.textContent = body.manufacturer + ' ' + body.name + ' | ' + lens.name + ' ' + Math.round(focalLength) + 'mm T' + aperture.toFixed(1);
+                vfRight.textContent = sensorFormat + ' ' + sensorDims + ' | ' + displayAR + ' | 24fps';
+            }
+
+            // Update manufacturer badge
+            var badge = document.querySelector('.vf-badge');
+            if (badge) badge.textContent = body.manufacturer;
         }
 
         // ───────────────────────────────────────────────────────────

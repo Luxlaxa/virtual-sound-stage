@@ -253,6 +253,39 @@ canvas { width: 100vw; height: 100vh; display: block; }
 #viewfinder[data-style="canon"] .vf-rec { color: rgba(255,80,80,0.7); }
 #viewfinder[data-style="canon"] .vf-grid { border-color: rgba(200,200,200,0.12); }
 
+/* ── Viewfinder Badge ─────────────────────────────────────── */
+.vf-badge {
+    position: absolute; top: 4%; left: 4%;
+    font-family: 'SF Mono', monospace; font-size: 8px;
+    letter-spacing: 2px; text-transform: uppercase;
+    padding: 2px 6px; border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 2px; pointer-events: none;
+    color: rgba(255,255,255,0.4);
+}
+#viewfinder[data-style="arri"] .vf-badge { color: rgba(255,255,255,0.5); border-color: rgba(255,255,255,0.2); }
+#viewfinder[data-style="red"] .vf-badge { color: rgba(204,34,34,0.7); border-color: rgba(204,34,34,0.3); }
+#viewfinder[data-style="sony"] .vf-badge { color: rgba(51,102,204,0.7); border-color: rgba(51,102,204,0.3); }
+#viewfinder[data-style="blackmagic"] .vf-badge { color: rgba(51,170,255,0.6); border-color: rgba(51,170,255,0.2); }
+#viewfinder[data-style="imax"] .vf-badge { color: rgba(255,170,0,0.7); border-color: rgba(255,170,0,0.3); font-size: 11px; }
+#viewfinder[data-style="panavision"] .vf-badge { color: rgba(212,170,100,0.7); border-color: rgba(212,170,100,0.3); }
+#viewfinder[data-style="canon"] .vf-badge { color: rgba(200,200,200,0.5); border-color: rgba(200,200,200,0.2); }
+
+/* ── Viewfinder Timecode ─────────────────────────────────── */
+.vf-timecode {
+    position: absolute; bottom: 4%; right: 4%;
+    font-family: 'SF Mono', monospace; font-size: 10px;
+    letter-spacing: 1px; pointer-events: none;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255,255,255,0.3);
+}
+#viewfinder[data-style="arri"] .vf-timecode { color: rgba(255,255,255,0.5); }
+#viewfinder[data-style="red"] .vf-timecode { color: rgba(204,34,34,0.6); }
+#viewfinder[data-style="sony"] .vf-timecode { color: rgba(51,102,204,0.6); }
+#viewfinder[data-style="blackmagic"] .vf-timecode { color: rgba(51,170,255,0.5); }
+#viewfinder[data-style="imax"] .vf-timecode { color: rgba(255,170,0,0.6); font-size: 12px; }
+#viewfinder[data-style="panavision"] .vf-timecode { color: rgba(212,170,100,0.6); }
+#viewfinder[data-style="canon"] .vf-timecode { color: rgba(200,200,200,0.4); }
+
 /* ── Settings Modal ────────────────────────────────────────── */
 #settings-modal {
     position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
