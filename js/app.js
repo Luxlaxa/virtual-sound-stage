@@ -655,6 +655,56 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         var secVariants = createSection(camBody, 'World Variants', false);
         var secReset = createSection(camBody, 'Reset', false);
 
+        // ── Camera Preset Selector ──
+        var cameraPresets = [
+            { label: '— Select Preset —', body: null, lens: null },
+            // Drama / TV
+            { label: 'Warm Drama (ARRI + Cooke S4)', body: 'arri-alexa-35', lens: 'cooke-s4i', focal: 50, aperture: 2.0, description: 'TV drama standard — warm filmic skin' },
+            { label: 'Premium Drama (ARRI + Signature)', body: 'arri-alexa-35', lens: 'arri-signature-prime', focal: 40, aperture: 1.8, description: 'The Batman, Dune — organic large-format' },
+            { label: 'Painterly (ARRI + Leica Summilux)', body: 'arri-alexa-35', lens: 'leica-summilux-c', focal: 35, aperture: 1.4, description: 'Stranger Things, Mank — creamy sharpness' },
+            // Blockbuster
+            { label: 'Modern Blockbuster (Venice + Cooke Ana)', body: 'sony-venice-2', lens: 'cooke-anamorphic-i', focal: 50, aperture: 2.3, description: 'Top Gun, A Star Is Born — premium anamorphic' },
+            { label: 'Epic Anamorphic (ARRI LF + Ultra Vista)', body: 'arri-alexa-mini-lf', lens: 'panavision-ultra-vista', focal: 65, aperture: 2.0, description: 'Dune, Mandalorian — epic large-format anamorphic' },
+            { label: 'Sci-Fi Clean (RED + Zeiss Master)', body: 'red-v-raptor', lens: 'zeiss-master-prime', focal: 35, aperture: 1.3, description: 'Blade Runner 2049, Sicario — clinical precision' },
+            // Vintage
+            { label: 'Vintage 70s (ARRI LF + Canon K-35)', body: 'arri-alexa-mini-lf', lens: 'canon-k35', focal: 35, aperture: 1.3, description: 'Barry Lyndon feel — warm faded halation' },
+            { label: 'Classic Hollywood (ARRI + Speed Panchro)', body: 'arri-alexa-35', lens: 'cooke-speed-panchro', focal: 50, aperture: 2.0, description: 'Killers of the Flower Moon — vintage Cooke warmth' },
+            { label: 'Soviet Dream (Any + Helios 44-2)', body: 'arri-alexa-35', lens: 'helios-44-2', focal: 58, aperture: 2.0, description: 'Swirly bokeh, dreamy Soviet character' },
+            { label: 'Godfather (Any + Super Baltar)', body: 'arri-alexa-35', lens: 'bausch-lomb-super-baltar', focal: 50, aperture: 2.3, description: 'Ethereal, romantic, vintage Hollywood' },
+            // Modern Indie
+            { label: 'Indie Anamorphic (RED + Atlas Orion)', body: 'red-komodo-x', lens: 'atlas-orion', focal: 50, aperture: 2.0, description: 'Babylon, Dont Look Up — affordable anamorphic' },
+            { label: 'Affordable Cinema (BM6K + Sigma)', body: 'blackmagic-pocket-6k-pro', lens: 'sigma-cine-ff-high-speed', focal: 35, aperture: 1.5, description: 'Clean modern indie — Nuts own kit' },
+            { label: 'Vintage Indie (BM6K + Sigma Classic Art)', body: 'blackmagic-pocket-6k-pro', lens: 'sigma-cine-ff-classic-art', focal: 50, aperture: 2.5, description: 'Uncoated low contrast character' },
+            // Large Format
+            { label: 'IMAX (ARRI 65 + Primo 70)', body: 'arri-alexa-65', lens: 'panavision-primo-70', focal: 50, aperture: 2.0, description: 'Oppenheimer, Avengers — monumental scale' },
+            { label: 'Warm Large Format (RED + Thalia)', body: 'red-v-raptor', lens: 'leitz-thalia', focal: 55, aperture: 2.6, description: 'Stranger Things S3 — Leica warmth on large format' },
+            // Classic Anamorphic
+            { label: 'Star Wars Original (Any + Panavision C)', body: 'arri-alexa-35', lens: 'panavision-c-series', focal: 50, aperture: 2.3, description: 'Star Wars 1977, Blade Runner — classic Hollywood anamorphic' },
+            { label: 'John Wick (ARRI + Master Anamorphic)', body: 'arri-alexa-35', lens: 'arri-master-anamorphic', focal: 50, aperture: 1.9, description: 'John Wick Ch4 — clean modern anamorphic' }
+        ];
+
+        var presetLabel = document.createElement('div');
+        presetLabel.className = 'section-label';
+        presetLabel.textContent = 'preset';
+        secCamera.appendChild(presetLabel);
+
+        var presetRow = document.createElement('div');
+        presetRow.className = 'select-row';
+        var presetSelect = document.createElement('select');
+        cameraPresets.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.body ? JSON.stringify(p) : '';
+            opt.textContent = p.label;
+            presetSelect.appendChild(opt);
+        });
+        presetRow.appendChild(presetSelect);
+        secCamera.appendChild(presetRow);
+
+        var presetDesc = document.createElement('div');
+        presetDesc.className = 'lens-info';
+        presetDesc.textContent = '';
+        secCamera.appendChild(presetDesc);
+
         // ── Camera Body Selector ──
         var bodySelectRow = document.createElement('div');
         bodySelectRow.className = 'select-row';
@@ -728,6 +778,8 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             activeBody = getBody(bodySelect.value);
             state.bodyId = activeBody.id;
             bodyDesc.textContent = activeBody.description;
+            presetSelect.value = '';
+            presetDesc.textContent = '';
             applyViewfinderStyle();
             updateCameraLook();
         });
@@ -737,6 +789,8 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             activeLens = getLens(lensSelect.value);
             state.lensId = activeLens.id;
             lensDesc.textContent = activeLens.characteristics;
+            presetSelect.value = '';
+            presetDesc.textContent = '';
             focalLength = nearestFocalLength(activeLens, focalLength);
             state.focalLength = focalLength;
             buildFocalLengthOptions();
@@ -756,6 +810,48 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             focalLength = parseFloat(flSelect.value);
             state.focalLength = focalLength;
             updateCameraLook();
+        });
+
+        // ── Preset change handler ──
+        presetSelect.addEventListener('change', function() {
+            if (!presetSelect.value) {
+                presetDesc.textContent = '';
+                return;
+            }
+            var p = JSON.parse(presetSelect.value);
+
+            // Update body
+            activeBody = getBody(p.body);
+            state.bodyId = activeBody.id;
+            bodySelect.value = activeBody.id;
+            bodyDesc.textContent = activeBody.description;
+
+            // Update lens
+            activeLens = getLens(p.lens);
+            state.lensId = activeLens.id;
+            buildLensOptions();
+            lensSelect.value = activeLens.id;
+            lensDesc.textContent = activeLens.characteristics;
+
+            // Update focal length
+            focalLength = p.focal;
+            state.focalLength = focalLength;
+            buildFocalLengthOptions();
+
+            // Update aperture
+            aperture = p.aperture;
+            state.aperture = aperture;
+            apSlider.input.value = aperture;
+            apSlider.valEl.textContent = formatVal(aperture, 0.1);
+
+            // Show preset description
+            presetDesc.textContent = p.description;
+
+            // Apply viewfinder style and camera look
+            applyViewfinderStyle();
+            updateCameraLook();
+
+            flashBadge(p.label);
         });
 
         // ── Aspect Ratio / Delivery Format ─────────────────────────
