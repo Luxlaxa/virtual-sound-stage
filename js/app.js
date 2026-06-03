@@ -384,6 +384,15 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             app.assets.load(splatAsset);
         }
 
+        // Debug: toggle world splat visibility to isolate character splat rendering
+        var worldSoloMode = false;
+        window.toggleWorldSplat = function () {
+            world.enabled = !world.enabled;
+            worldSoloMode = !world.enabled;
+            console.log('[SPLAT-DEBUG] world splat ' + (world.enabled ? 'ON' : 'OFF (solo character mode)'));
+            flashBadge('world splat: ' + (world.enabled ? 'on' : 'off'));
+        };
+
         function toggleCharMode(name) {
             var meshEntity = name === 'phop' ? phop : davinci;
             var splatEntity = charSplatEntities[name];
@@ -400,6 +409,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
                         charMode[name] = 'splat';
                         updateCharModeUI();
                         flashBadge(name + ' → splat');
+                        console.log('[SPLAT-DEBUG] ' + name + ' splat visible. Try toggleWorldSplat() in console to hide world and isolate.');
                     });
                     return;
                 }
