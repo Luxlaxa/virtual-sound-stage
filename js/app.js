@@ -332,6 +332,91 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
             app.root.addChild(davinci);
         }
 
+        // ── Character Splat System — toggle between mesh and gaussian splat ──
+        var charSplatEntities = { phop: null, davinci: null };
+        var charSplatAssets = { phop: null, davinci: null };
+        var charMode = { phop: 'mesh', davinci: 'mesh' }; // 'mesh' or 'splat'
+
+        function loadCharacterSplat(name, filename, callback) {
+            var splatAsset = new pc.Asset(name + '-splat', 'gsplat', { url: filename });
+            splatAsset.on('load', function () {
+                var splatEntity = new pc.Entity(name + '-Splat');
+                splatEntity.addComponent('gsplat', { asset: splatAsset });
+
+                // Position the splat at the same location as the mesh
+                var meshEntity = name === 'phop' ? phop : davinci;
+                if (meshEntity) {
+                    splatEntity.setLocalPosition(meshEntity.getLocalPosition());
+                    splatEntity.setLocalEulerAngles(meshEntity.getLocalEulerAngles());
+                    splatEntity.setLocalScale(meshEntity.getLocalScale());
+                }
+
+                splatEntity.enabled = false; // start hidden
+                app.root.addChild(splatEntity);
+                charSplatEntities[name] = splatEntity;
+                charSplatAssets[name] = splatAsset;
+                if (callback) callback(splatEntity);
+            });
+            splatAsset.on('error', function (err) {
+                console.warn('splat not available for ' + name + ':', err);
+            });
+            app.assets.add(splatAsset);
+            app.assets.load(splatAsset);
+        }
+
+        function toggleCharMode(name) {
+            var meshEntity = name === 'phop' ? phop : davinci;
+            var splatEntity = charSplatEntities[name];
+
+            if (charMode[name] === 'mesh') {
+                // Switch to splat
+                if (!splatEntity) {
+                    // Try loading the splat file
+                    var filename = name === 'phop' ? 'phop-splat.ply' : 'davinci-splat.ply';
+                    flashBadge('loading ' + name + ' splat...');
+                    loadCharacterSplat(name, filename, function (ent) {
+                        if (meshEntity) meshEntity.enabled = false;
+                        ent.enabled = true;
+                        charMode[name] = 'splat';
+                        updateCharModeUI();
+                        flashBadge(name + ' → splat');
+                    });
+                    return;
+                }
+                if (meshEntity) meshEntity.enabled = false;
+                splatEntity.enabled = true;
+                charMode[name] = 'splat';
+            } else {
+                // Switch to mesh
+                if (splatEntity) splatEntity.enabled = false;
+                if (meshEntity) meshEntity.enabled = true;
+                charMode[name] = 'mesh';
+            }
+            updateCharModeUI();
+            flashBadge(name + ' → ' + charMode[name]);
+        }
+
+        function updateCharModeUI() {
+            if (typeof phopModeBtn !== 'undefined') {
+                phopModeBtn.textContent = 'phop: ' + charMode.phop;
+                phopModeBtn.className = 'lock-btn' + (charMode.phop === 'splat' ? ' active' : '');
+            }
+            if (typeof davinciModeBtn !== 'undefined') {
+                davinciModeBtn.textContent = 'davinci: ' + charMode.davinci;
+                davinciModeBtn.className = 'lock-btn' + (charMode.davinci === 'splat' ? ' active' : '');
+            }
+        }
+
+        // Pre-check if splat files exist (try HEAD requests)
+        ['phop-splat.ply', 'davinci-splat.ply'].forEach(function (f) {
+            fetch(f, { method: 'HEAD' }).then(function (r) {
+                if (r.ok) {
+                    var name = f.startsWith('phop') ? 'phop' : 'davinci';
+                    console.log(name + ' splat available: ' + f);
+                }
+            }).catch(function () {});
+        });
+
         // ── Fix PBR rendering: environment map + material boost ──
         // PBR materials need ambient/environment lighting to show textures properly.
         // Without this, they look flat/clay regardless of texture quality.
@@ -859,6 +944,7 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         var secPOV = createSection(camBody, 'POV Adjust', false);
         var secLighting = createSection(camBody, 'Lighting', false);
         var secVariants = createSection(camBody, 'World Variants', false);
+        var secCharacters = createSection(camBody, 'Characters', false);
         var secShotList = createSection(camBody, 'Shot List', false);
         var secReset = createSection(camBody, 'Reset', false);
 
@@ -1445,6 +1531,36 @@ import { lenses, getLens, getLensByType, nearestFocalLength } from './lens-datab
         });
         resetRow.appendChild(resetBtn);
         secReset.appendChild(resetRow);
+
+        // ── Characters Panel — mesh/splat toggle ──
+        var charInfo = document.createElement('div');
+        charInfo.className = 'lens-info';
+        charInfo.textContent = 'toggle between 3D mesh and gaussian splat';
+        secCharacters.appendChild(charInfo);
+
+        var charRow = document.createElement('div');
+        charRow.className = 'lock-row';
+
+        var phopModeBtn = document.createElement('button');
+        phopModeBtn.className = 'lock-btn';
+        phopModeBtn.textContent = 'phop: mesh';
+        phopModeBtn.addEventListener('click', function () { toggleCharMode('phop'); });
+        charRow.appendChild(phopModeBtn);
+
+        var davinciModeBtn = document.createElement('button');
+        davinciModeBtn.className = 'lock-btn';
+        davinciModeBtn.textContent = 'davinci: mesh';
+        davinciModeBtn.addEventListener('click', function () { toggleCharMode('davinci'); });
+        charRow.appendChild(davinciModeBtn);
+
+        secCharacters.appendChild(charRow);
+
+        // Generate splat buttons
+        var genSplatInfo = document.createElement('div');
+        genSplatInfo.className = 'lens-info';
+        genSplatInfo.style.marginTop = '6px';
+        genSplatInfo.textContent = 'splat files: davinci-splat.ply, phop-splat.ply';
+        secCharacters.appendChild(genSplatInfo);
 
         // ── Shot List Panel ──
 
